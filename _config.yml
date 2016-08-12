@@ -4,7 +4,7 @@ subtitle: 个人站
 description: iOS | Machine Learning
 creator: <a href="http://baixin.io">@leopardpan</a>
 
-url: "http://baixin.io"
+# url: "http://baixin.io"
 
 permalink: /:year/:month/:title/
 
