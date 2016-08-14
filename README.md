@@ -1,35 +1,13 @@
-# 个人博客    
+# Vno - Jekyll
 
-博客样式还正在修改中     
+[Vno Jekyll](https://github.com/onevcat/vno-jekyll) is a theme for [Jekyll](http://jekyllrb.com). It is a port of my Ghost theme [vno](https://github.com/onevcat/vno), which is originally developed from [Dale Anthony's Uno](https://github.com/daleanthony/uno).
 
-如果你喜欢我的博客，你可以 `下载` , 然后使用 `jekyll server` 看看效果。
+## Live Demo
 
+See [Vno - Jekyll](http://vno.onevcat.com) site and [my blog](http://onevcat.com).
 
-#### 小屏或移动设备。
-![](/assets/images/img5.png)
+You can also find some instruction as well as other sites using Vno theme in [this page](http://vno.onevcat.com/2016/02/hello-world-vno/).
 
-***
+## Licence
 
-#### 博客首页   
-
-![](/assets/images/img4.png)   
-
-***  
-
-#### 文章详情   
-
-![](/assets/images/img3.png)
-
-
-![](/assets/images/img2.png)
-
-
-![](/assets/images/img1.png)
-
-
-#### 如果有问题      
-可以直接在[Issues](https://github.com/leopardpan/leopardpan.github.io/issues)里面提问。        
-
-
-#### 感谢   
-本博客在[Vno Jekyll](https://github.com/onevcat/vno-jekyll)基础上修改的。  
+Great thanks to [Dale Anthony](https://github.com/daleanthony) and his [Uno](https://github.com/daleanthony/uno). Vno Jekyll is based on Uno, and contains a lot of modification on page layout, animation, font and some more things I can not remember. Vno Jekyll is followed with Uno and be licensed as [Creative Commons Attribution 4.0 International](http://creativecommons.org/licenses/by/4.0/). See the link for more information.
