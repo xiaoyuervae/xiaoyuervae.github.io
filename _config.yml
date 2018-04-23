@@ -1,11 +1,11 @@
 # Basic
-title: xiaoyuervae
-subtitle: 写点杂的...
-welcome_message: <a href="https://github.com/onevcat/vno-jekyll" target="_blank">Download the theme</a>
-description: 吾将上下而求远<(￣3￣)>
+title: guanchun.yu
+subtitle: 做一个有节制的人！
+welcome_message: 欢迎来到我的博客
+description: 工作一年多的程序员, 现就职于杭州贝贝网, 脱发是不可能脱的🙂
 creator: <a href="http://xiaoyuervae.com">@xiaoyuervae</a>
 
-#url: "http://vno.onevcat.com"
+url: "http://xiaoyuervae.com"
 
 permalink: /:year/:month/:title/
 
@@ -32,15 +32,15 @@ paginate_path: "page/:num/"
 
 # Comment
 comment:
-    disqus: vno-jekyll
+    disqus: xiaoyuervae
     # duoshuo:
 
 # Social
 social:
-    weibo: 18867316855
+    weibo: 18667048220
     github: xiaoyuervae
     twitter: xiaoyuervae
-    gplus: 107108267983477358170
+#    gplus: 107108267983477358170
     mail: xiaoyuervae@icloud.com
 
 # Google Analytics
