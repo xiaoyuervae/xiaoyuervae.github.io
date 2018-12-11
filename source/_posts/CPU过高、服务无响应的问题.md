@@ -1,7 +1,10 @@
 ---
 title: 一次排查MongoDB CPU过高、服务无响应的问题
+tags:
+  - mongo
+  - cpu
+abbrlink: 611001842
 date: 2018-12-02 14:59:38
-tags: [mongo, cpu]
 ---
 
 ## 问题的出现

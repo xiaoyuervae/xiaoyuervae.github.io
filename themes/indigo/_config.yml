@@ -20,9 +20,13 @@ menu:
   th-list:
     text: 分类
     url: /categories
+  bookmark:
+    text: 读书
+    url: /books
   film:
     text: 电影
     url: /movies
+
   # github:
   #   url: https://github.com/yscoder
   #   target: _blank
@@ -52,11 +56,10 @@ color: '#3F51B5'
 tags_title: 标签
 archives_title: 归档
 categories_title: 分类
-movies_title: 电影
 
 # 文章截断
 excerpt_render: false
-excerpt_length: 200
+excerpt_length: 180
 excerpt_link: 阅读全文...
 mathjax: false
 archive_yearly: true
@@ -84,7 +87,7 @@ hideMenu: true
 toc:
   list_number: true  # 是否显示数字排序
 
-copyright: 这里写留言或版权声明：<a href="<%- url_for(page.path) %>" target="_blank" rel="external"><%- url %></a>
+# copyright: 这里写留言或版权声明：<a href="<%- url_for(page.path) %>" target="_blank" rel="external"><%- url %></a>
 
 # 文章页留言内容，hexo中所有变量及辅助函数等均可调用，具体请查阅 hexo.io
 postMessage: 这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="<%- url_for(page.path).replace(/index\.html$/, '') %>" target="_blank" rel="external"><%- page.permalink.replace(/index\.html$/, '') %></a>
@@ -131,7 +134,7 @@ valine:
   appKey:  cOUmk5RjOkfPAznRCHlTDd6S
   notify: false # Mail notify
   verify: false # Verify code
-  avatar: mm # Gravatar style : mm/identicon/monsterid/wavatar/retro/hide
+  avatar: 'retro' # Gravatar style : mm/identicon/monsterid/wavatar/retro/hide
   placeholder: 爱评论的人运气通常都不会太差！ # Comment Box placeholder
   guest_info: nick,mail,link # Comment header info
   pageSize: 10 # comment list page size
@@ -158,17 +161,24 @@ visit_counter:
   site_uv: 站点总访客数：
   site_pv: 站点总访问量：
 
+reading_time: 
+  wpm: 180 #每分钟阅读字数
+  display: min. #显示文本标识
+
 # 动态定义title
-title_change:
+title_change: false
   # normal: (つェ⊂)咦!又好了!
   # leave: 
 
 # 设置为 true 发布后将使用 unpkg cdn 最新的主题样式
 # 如果想让你的自定义样式生效，把此项设为 false
-cdn: true
+cdn: false
 
 # 设置为 true 将使用 lightbox render 图片
 lightbox: true
 
 # icp备案号  ICP_license: 京ICP备1234556号-1
-ICP_license: false
+ICP_license: 浙ICP备18052095号-1
+
+# # 公安安备号 beian_gov : 43030202001139
+# beian_gov : 43030202001139

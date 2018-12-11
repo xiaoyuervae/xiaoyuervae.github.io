@@ -1,7 +1,9 @@
 ---
 title: RocketMq 学习之核心参数
+tags:
+  - rocketmq
+abbrlink: 1044148734
 date: 2018-12-10 22:53:23
-tags: [rocketmq]
 ---
 
 > producerGroup
