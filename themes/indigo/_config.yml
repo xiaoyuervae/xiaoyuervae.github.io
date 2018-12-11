@@ -105,16 +105,6 @@ google_site_verification: false
 # sogou站长验证 http://zhanzhang.sogou.com/
 sogou_site_verification: false
 
-# 豆瓣插件
-douban:
-  user:   136584511
-  book:
-    title: '读书'
-    quote: '要么旅行，要么读书，身体和灵魂必须有一个在路上。'
-  movie:
-    title: '电影'
-    quote: '如果再也不能再见到你，祝你早安，午安，晚安。'
-
 # less
 less:
   compress: true
