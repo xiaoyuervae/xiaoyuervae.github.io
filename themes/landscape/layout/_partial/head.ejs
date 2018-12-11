@@ -18,6 +18,8 @@
     title = __('category') + ': ' + page.category;
   } else if (is_tag()){
     title = __('tag') + ': ' + page.tag;
+  } else if (is_movie()) {
+    title = __('movie_a')
   }
   %>
   <title><% if (title){ %><%= title %> | <% } %><%= config.title %></title>

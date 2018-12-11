@@ -20,6 +20,9 @@ menu:
   th-list:
     text: 分类
     url: /categories
+  film:
+    text: 电影
+    url: /movies
   # github:
   #   url: https://github.com/yscoder
   #   target: _blank
@@ -49,6 +52,7 @@ color: '#3F51B5'
 tags_title: 标签
 archives_title: 归档
 categories_title: 分类
+movies_title: 电影
 
 # 文章截断
 excerpt_render: false
@@ -122,13 +126,13 @@ gitment: false
 
 # Valine Comment system. https://valine.js.org
 valine:
-  enable: false # 如果你想使用valine，请将值设置为 true
-  appId:  # your leancloud appId
-  appKey:  # your leancloud appKey
+  enable: true # 如果你想使用valine，请将值设置为 true
+  appId:  NhW1Ae88ntG5C6r1SgC0DieH-gzGzoHsz
+  appKey:  cOUmk5RjOkfPAznRCHlTDd6S
   notify: false # Mail notify
   verify: false # Verify code
   avatar: mm # Gravatar style : mm/identicon/monsterid/wavatar/retro/hide
-  placeholder: Just go go # Comment Box placeholder
+  placeholder: 爱评论的人运气通常都不会太差！ # Comment Box placeholder
   guest_info: nick,mail,link # Comment header info
   pageSize: 10 # comment list page size
 
@@ -147,7 +151,7 @@ canonical: false
 since_year: 2018
 
 # 用户页面中作者相关的描述性文字，如不需要设为 false
-about: 用户页面中作者相关的描述性文字，如不需要设为 false
+about: 有一些技术，人们即便每天都在使用，也未必能意识到他的存在。
 
 # “不蒜子”访问量统计，详见 http://ibruce.info/2015/04/04/busuanzi/
 visit_counter:

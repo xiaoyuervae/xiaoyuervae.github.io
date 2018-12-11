@@ -1,0 +1,17 @@
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+.DS_Store
+
+Thumbs.db
+
+db.json
+
+*.log
+public
+node_modules
+package-lock.json
+
