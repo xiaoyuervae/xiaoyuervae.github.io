@@ -1,7 +1,16 @@
-<aside id="menu" <% if((is_post() || page.layout === 'page') && theme.hideMenu){ %>class="hide"<% } %> >
+<style>
+  #aplayer {
+    width: 220px;
+    margin-top: 20px;
+  }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aplayer/1.10.1/APlayer.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aplayer/1.10.1/APlayer.min.js"></script>
+<aside id="menu" <% if((is_post() || page.layout==='page' ) && theme.hideMenu){ %>class="hide"
+  <% } %> >
   <div class="inner flex-row-vertical">
     <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
-        <i class="icon icon-lg icon-close"></i>
+      <i class="icon icon-lg icon-close"></i>
     </a>
     <div class="brand-wrap" style="background-image:url(<%- url_for(theme.brand) %>)">
       <div class="brand">
@@ -9,7 +18,9 @@
           <img src="<%- url_for(theme.avatar) %>">
         </a>
         <hgroup class="introduce">
-          <h5 class="nickname"><%- config.author %></h5>
+          <h5 class="nickname">
+            <%- config.author %>
+          </h5>
           <%- mail_to(theme.email, theme.email, {class: 'mail'}) %>
         </hgroup>
       </div>
@@ -24,17 +35,55 @@
           for (var i in theme.menu) {
             menuItem = theme.menu[i];
           %>
-            <li class="waves-block waves-effect<% if(isActive(menuItem)){ %> active<% } %>">
-              <a href="<%- url_for(menuItem.url) %>" <% if(menuItem.target){ %>target="_blank"<% } %> >
-                <i class="icon icon-lg icon-<%= i %>"></i>
-                <%=(menuItem.text || _.startCase(i)) %>
-              </a>
-            </li>
+        <li class="waves-block waves-effect<% if(isActive(menuItem)){ %> active<% } %>">
+          <a href="<%- url_for(menuItem.url) %>" <% if(menuItem.target){ %>target="_blank"
+            <% } %> >
+            <i class="icon icon-lg icon-<%= i %>"></i>
+            <%=(menuItem.text || _.startCase(i)) %>
+          </a>
+        </li>
         <% } %>
-        <div id="music">
-          <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width="240" height=86 src="//music.163.com/outchain/player?type=2&id=29794281&auto=1&height=66"></iframe>
+        <div id="music"">
+          <div id="aplayer"></div>
+        </div>
         </li>
       </ul>
     </div>
   </div>
 </aside>
+<script>
+  const app = new APlayer({
+    container: document.getElementById('aplayer'),
+    autoplay: true,
+    loop: 'all',
+    order: 'random',
+    preload: 'auto',
+    volume: 0.7,
+    mutex: true, 
+    audio: [ {
+      name: '青春住了谁',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=505451285.mp3',
+      cover: 'http://p1.music.126.net/f8I94rzjMCzZJ0q1fR0ftw==/109951163023754735.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '挂失的青春',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=29794917.mp3',
+      cover: 'http://p1.music.126.net/caUiTL1FaolgWpSWy0Hnqg==/109951163249803409.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '喜剧收场',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=29794921.mp3',
+      cover: 'http://p2.music.126.net/F06r32IxFWWquGjY3bl40w==/3401888991666195.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '耳朵',
+      artist: '李荣浩',
+      url: 'http://music.163.com/song/media/outer/url?id=1318235595.mp3',
+      cover: 'http://p1.music.126.net/tt8xwK-ASC2iqXNUXYKoDQ==/109951163606377163.jpg?param=130y130',
+      theme: '#46718b'
+    }]
+  });
+</script>

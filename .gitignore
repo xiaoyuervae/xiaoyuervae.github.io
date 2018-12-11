@@ -9,8 +9,8 @@
 Thumbs.db
 
 db.json
-
 *.log
 public
 node_modules
+package-lock.json
 

@@ -98,6 +98,11 @@ douban:
     quote: '如果再也不能再见到你，祝你早安，午安，晚安。'
   builtin: true
 
+# CloudMusic
+widgetType:  flash ## It can be embed or iframe
+widgetSize:  small ## It can be small or large
+autoPlay:  1 ## It can be 0 to set autoPlay disable or 1 to set autoPlay enable
+
 # JSON内容
 jsonContent:
   meta: false
