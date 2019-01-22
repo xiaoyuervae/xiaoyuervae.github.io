@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+    
+
+    
+
+    
+
+
+
+    <meta charset="utf-8">
+    
+    
+    
+    
+    <title>分布式锁的应用 | 青春住了谁 | 只有真正了解自己想要什么，才能知道自己该干什么。</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    
+    <meta name="theme-color" content="#3F51B5">
+    
+    
+    <meta name="keywords" content="">
+    <meta name="description" content="要解决什么问题？现在在互联网的场景中大家的服务应该都是进行分布式部署的，分布式锁和我们之前Java应用中的锁其实都是为了解决多线程的问题。只是说在以前单机部署情况下使用的如 Synchronized、Lock 等锁在分布式的场景下某些业务无法满足，需要我们使用分布式锁来解决这一分布式竞争的情况。 分布式锁会出现哪样的一些问题？互斥（只有一个客户端能获取锁）互斥是最基本的、在同一时刻只能有一个客户端">
+<meta name="keywords" content="开发、生活">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式锁的应用">
+<meta property="og:url" content="https://blog.xiaoyuervae.cn/posts/undefined/index.html">
+<meta property="og:site_name" content="青春住了谁">
+<meta property="og:description" content="要解决什么问题？现在在互联网的场景中大家的服务应该都是进行分布式部署的，分布式锁和我们之前Java应用中的锁其实都是为了解决多线程的问题。只是说在以前单机部署情况下使用的如 Synchronized、Lock 等锁在分布式的场景下某些业务无法满足，需要我们使用分布式锁来解决这一分布式竞争的情况。 分布式锁会出现哪样的一些问题？互斥（只有一个客户端能获取锁）互斥是最基本的、在同一时刻只能有一个客户端">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-01-22T07:22:15.577Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="分布式锁的应用">
+<meta name="twitter:description" content="要解决什么问题？现在在互联网的场景中大家的服务应该都是进行分布式部署的，分布式锁和我们之前Java应用中的锁其实都是为了解决多线程的问题。只是说在以前单机部署情况下使用的如 Synchronized、Lock 等锁在分布式的场景下某些业务无法满足，需要我们使用分布式锁来解决这一分布式竞争的情况。 分布式锁会出现哪样的一些问题？互斥（只有一个客户端能获取锁）互斥是最基本的、在同一时刻只能有一个客户端">
+    
+        <link rel="alternate" type="application/atom+xml" title="青春住了谁" href="/atom.xml">
+    
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/css/style.css?v=1.7.2">
+    <script>window.lazyScripts=[]</script>
+
+    <!-- custom head -->
+    
+
+</head>
+
+<body>
+    <div id="loading" class="active"></div>
+
+    <style>
+  #aplayer {
+    width: 220px;
+    margin-top: 20px;
+  }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aplayer/1.10.1/APlayer.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aplayer/1.10.1/APlayer.min.js"></script>
+<aside id="menu" class="hide">
+  <div class="inner flex-row-vertical">
+    <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
+      <i class="icon icon-lg icon-close"></i>
+    </a>
+    <div class="brand-wrap" style="background-image:url(/img/brand.jpg)">
+      <div class="brand">
+        <a href="/" class="avatar waves-effect waves-circle waves-light">
+          <img src="/img/avatar.jpg">
+        </a>
+        <hgroup class="introduce">
+          <h5 class="nickname">
+            老鱼头
+          </h5>
+          <a href="mailto:xiaoyuervae@icloud.com" title="xiaoyuervae@icloud.com" class="mail">xiaoyuervae@icloud.com</a>
+        </hgroup>
+      </div>
+    </div>
+    <div class="scroll-wrap flex-col">
+      <ul class="nav">
+        
+        <li class="waves-block waves-effect">
+          <a href="/">
+            <i class="icon icon-lg icon-home"></i>
+            主页
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/archives">
+            <i class="icon icon-lg icon-archives"></i>
+            归档
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/tags">
+            <i class="icon icon-lg icon-tags"></i>
+            标签
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/categories">
+            <i class="icon icon-lg icon-th-list"></i>
+            分类
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/books">
+            <i class="icon icon-lg icon-bookmark"></i>
+            读书
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/movies">
+            <i class="icon icon-lg icon-film"></i>
+            电影
+          </a>
+        </li>
+        
+        <div id="music" "="">
+          <div id="aplayer"></div>
+        </div>
+        
+      </ul>
+    </div>
+  </div>
+</aside>
+<script>
+  const app = new APlayer({
+    container: document.getElementById('aplayer'),
+    autoplay: true,
+    loop: 'all',
+    order: 'random',
+    preload: 'auto',
+    volume: 0.7,
+    mutex: true, 
+    audio: [ {
+      name: '青春住了谁',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=505451285.mp3',
+      cover: 'http://p1.music.126.net/f8I94rzjMCzZJ0q1fR0ftw==/109951163023754735.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '挂失的青春',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=29794917.mp3',
+      cover: 'http://p1.music.126.net/caUiTL1FaolgWpSWy0Hnqg==/109951163249803409.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '喜剧收场',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=29794921.mp3',
+      cover: 'http://p2.music.126.net/F06r32IxFWWquGjY3bl40w==/3401888991666195.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '耳朵',
+      artist: '李荣浩',
+      url: 'http://music.163.com/song/media/outer/url?id=1318235595.mp3',
+      cover: 'http://p1.music.126.net/tt8xwK-ASC2iqXNUXYKoDQ==/109951163606377163.jpg?param=130y130',
+      theme: '#46718b'
+    }]
+  });
+</script>
+    <main id="main">
+        <header class="top-header" id="header">
+    <div class="flex-row">
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light on" id="menu-toggle">
+          <i class="icon icon-lg icon-navicon"></i>
+        </a>
+        <div class="flex-col header-title ellipsis">分布式锁的应用</div>
+        
+        <div class="search-wrap" id="search-wrap">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
+                <i class="icon icon-lg icon-chevron-left"></i>
+            </a>
+            <input type="text" id="key" class="search-input" autocomplete="off" placeholder="输入感兴趣的关键字">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="search">
+                <i class="icon icon-lg icon-search"></i>
+            </a>
+        </div>
+        
+        
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menuShare">
+            <i class="icon icon-lg icon-share-alt"></i>
+        </a>
+        
+    </div>
+</header>
+<header class="content-header post-header">
+
+    <div class="container fade-scale">
+        <h1 class="title">分布式锁的应用</h1>
+        <h5 class="subtitle">
+            
+                <time datetime="2019-01-22T15:17:09.000Z" itemprop="datePublished" class="page-time">
+  2019-01-22
+</time>
+
+
+            
+        </h5>
+    </div>
+
+    
+
+
+</header>
+
+
+<div class="container body-wrap">
+    
+    <aside class="post-widget">
+        <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
+            <h4>TOC</h4>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#要解决什么问题？"><span class="post-toc-number">1.</span> <span class="post-toc-text">要解决什么问题？</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#分布式锁会出现哪样的一些问题？"><span class="post-toc-number">2.</span> <span class="post-toc-text">分布式锁会出现哪样的一些问题？</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#互斥（只有一个客户端能获取锁）"><span class="post-toc-number">2.1.</span> <span class="post-toc-text">互斥（只有一个客户端能获取锁）</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#不能死锁"><span class="post-toc-number">2.2.</span> <span class="post-toc-text">不能死锁</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#容错"><span class="post-toc-number">2.3.</span> <span class="post-toc-text">容错</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#实现分布式锁的几种方式"><span class="post-toc-number">3.</span> <span class="post-toc-text">实现分布式锁的几种方式</span></a></li></ol>
+        </nav>
+    </aside>
+
+
+<article id="post-分布式锁的应用" class="post-article article-type-post fade" itemprop="blogPost">
+
+    <div class="post-card">
+        <h1 class="post-card-title">分布式锁的应用</h1>
+        <div class="post-meta">
+            <time class="post-time" title="2019-01-22 15:17:09" datetime="2019-01-22T15:17:09.000Z" itemprop="datePublished">2019-01-22</time>
+
+            
+
+
+            
+<span id="busuanzi_container_page_pv" title="文章总阅读量" style="display:none">
+    <i class="icon icon-eye icon-pr"></i><span id="busuanzi_value_page_pv"></span>
+</span>
+
+
+        </div>
+        <div class="post-content" id="post-content" itemprop="postContent">
+            <h2 id="要解决什么问题？"><a href="#要解决什么问题？" class="headerlink" title="要解决什么问题？"></a>要解决什么问题？</h2><p>现在在互联网的场景中大家的服务应该都是进行分布式部署的，分布式锁和我们之前Java应用中的锁其实都是为了解决多线程的问题。只是说在以前单机部署情况下使用的如 <code>Synchronized</code>、<code>Lock</code> 等锁在分布式的场景下某些业务无法满足，需要我们使用分布式锁来解决这一分布式竞争的情况。</p>
+<h2 id="分布式锁会出现哪样的一些问题？"><a href="#分布式锁会出现哪样的一些问题？" class="headerlink" title="分布式锁会出现哪样的一些问题？"></a>分布式锁会出现哪样的一些问题？</h2><h3 id="互斥（只有一个客户端能获取锁）"><a href="#互斥（只有一个客户端能获取锁）" class="headerlink" title="互斥（只有一个客户端能获取锁）"></a>互斥（只有一个客户端能获取锁）</h3><p>互斥是最基本的、在同一时刻只能有一个客户端能够获取到锁，这个通过数据库、<code>Redis</code>、<code>Zookeeper</code>等特性都能够保证。</p>
+<h3 id="不能死锁"><a href="#不能死锁" class="headerlink" title="不能死锁"></a>不能死锁</h3><p>死锁、顾名思义，就是说锁一直都不被释放，导致其他线程或任务一直都阻塞在这里，永远都不能获取到锁（如果是阻塞锁可能会使任务一直堆积）。</p>
+<p>不能死锁很多人也会回答说给我们的锁来设置一个过期时间（比如说<code>Redis</code>锁）</p>
+<p>这边给一个我们线上出现死锁的情况，我们来看一下这段代码:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">tryLock</span><span class="params">(String key, <span class="keyword">int</span> timeToLive)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (timeToLive &lt;= <span class="number">0</span>) &#123;</span><br><span class="line">        timeToLive = TTL;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Long v = jedisCluster.incr(key);</span><br><span class="line">    <span class="keyword">if</span> (target.equals(v)) &#123;</span><br><span class="line">        jedisCluster.expire(key, timeToLive);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们看到这段代码中是使用<strong>JedisCluster.incr(key)</strong>来创建分布式锁的，如果说获取到锁了那么返回结果应该是1L，成功后便设置锁的过期时间，这段代码看起来是没问题，但是在我们线上的情况竟然发现了死锁！</p>
+<p>这是什么情况呢，某天发现该分布式锁下面代码逻辑都没有再执行，到redis里面查看了该key的值发现竟然有7w多，明显是执行了7w多次<code>tryLock</code>最终还是没有能够获取到锁，但是难道一次代码逻辑需要执行这么多次吗？很明显不是，按道理来讲如果锁了一定时间后这个key应该是会过期的，我们的<code>timeToLive</code>设置的值是60s，不会说一直在这里不释放的。</p>
+<p>后面查看应用日志发现我们的<code>redis</code>在某1s内突然失去了连接（具体原因不明）, 于是恍然大悟, 在我们<code>tryLock</code>的逻辑中是先设置key再去设置过期时间，这两者并不是一个原子性的操作，可能刚好在这个时间点我们设置好了key的值但是没来得及设置过期时间 <code>redis</code> 失去了连接，导致我们的过期时间设置失败，所以这个key一直没能够释放。</p>
+<p>明白了原因我们就知道这种分布式锁的实现方式其实是存在明显漏洞的，要保证给锁设置值和过期时间是一个原子性的操作才能够保证不被死锁。</p>
+<p>我们把这个方式直接改成了使用<code>redis</code>命令来设置:</p>
+<blockquote>
+<p>SET my:lock 随机值 NX PX 30000</p>
+</blockquote>
+<p>执行这个命令就 ok。</p>
+<ul>
+<li>NX：表示只有 key 不存在的时候才会设置成功。（如果此时 <code>redis</code> 中存在这个 key，那么设置失败，返回 nil）</li>
+<li>PX 30000：意思是 30s 后锁自动释放。别人创建的时候如果发现已经有了就不能加锁了。</li>
+</ul>
+<h3 id="容错"><a href="#容错" class="headerlink" title="容错"></a>容错</h3><p>我这边理解的容错可能需要应对以下几种情况:</p>
+<ul>
+<li>分布式锁依赖的中间件不可用(如<code>Redis</code>、<code>Zookeeper</code>、<code>数据库</code>等)</li>
+<li>应用突然宕机（包括应用发布过程）</li>
+<li>中间件集群（如<code>Redis</code>集群中只要大部分节点创建了这把锁就可以，N个Redis节点，需要 <strong>(N/2 + 1)</strong> 个节点以上）</li>
+<li>过期时间超时后不能让该线程解锁</li>
+</ul>
+<p>我这边讲一下最后一个点，也就是说如果分布式锁过期了但是该线程中的任务还没有结束，当该线程的执行逻辑结束之后其实之前他自己获得的锁已经被释放了，这时候它如果再去做解锁的操作其实是将其他线程获取的锁给释放掉了，这种情况肯定是会有问题的。</p>
+<p>所以在分布式锁释放的时候我们必须保证一个线程释放的锁必须是这个线程获得的，针对<code>Redis</code>分布式锁来说我们可以使用<code>lua</code>脚本来做释放锁的操作:</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 删除锁的时候，找到 key 对应的 value，跟自己传过去的 value 做比较，如果是一样的才删除。</span></span><br><span class="line"><span class="keyword">if</span> redis.call(<span class="string">"get"</span>,KEYS[<span class="number">1</span>]) == ARGV[<span class="number">1</span>] <span class="keyword">then</span></span><br><span class="line">    <span class="keyword">return</span> redis.call(<span class="string">"del"</span>,KEYS[<span class="number">1</span>])</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span></span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
+<p>这里我们需要判断value，这个value是我们在<code>tryLock</code>的时候去创建的，我们可以使用<code>UUID</code>之类的随机数（要确保每次创建的都不会一致）来创建、然后在删除的时候去判断这个value，不相同说明不是该线程创建的。</p>
+<h2 id="实现分布式锁的几种方式"><a href="#实现分布式锁的几种方式" class="headerlink" title="实现分布式锁的几种方式"></a>实现分布式锁的几种方式</h2><p>其实实现分布式锁的方式有很多种，基于<code>Redis</code>的我上面基本都介绍了，我这边着重讲一下基于<code>Zookeeper</code>来实现分布式锁。</p>
+<p>zk 分布式锁，其实可以做的比较简单，就是某个节点尝试创建临时 <code>znode</code>，此时创建成功了就获取了这个锁；这个时候别的客户端来创建锁会失败，只能注册个监听器监听这个锁。释放锁就是删除这个 <code>znode</code>，一旦释放掉就会通知客户端，然后有一个等待着的客户端就可以再次重新加锁。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ZooKeeperSession</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> CountDownLatch connectedSemaphore = <span class="keyword">new</span> CountDownLatch(<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> ZooKeeper zookeeper;</span><br><span class="line">    <span class="keyword">private</span> CountDownLatch latch;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ZooKeeperSession</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.zookeeper = <span class="keyword">new</span> ZooKeeper(<span class="string">"192.168.31.187:2181,192.168.31.19:2181,192.168.31.227:2181"</span>, <span class="number">50000</span>, <span class="keyword">new</span> ZooKeeperWatcher());</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                connectedSemaphore.await();</span><br><span class="line">            &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            System.out.println(<span class="string">"ZooKeeper session established......"</span>);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 获取分布式锁</span></span><br><span class="line"><span class="comment">     * </span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> productId</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Boolean <span class="title">acquireDistributedLock</span><span class="params">(Long productId)</span> </span>&#123;</span><br><span class="line">        String path = <span class="string">"/product-lock-"</span> + productId;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            zookeeper.create(path, <span class="string">""</span>.getBytes(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    <span class="comment">// 相当于是给node注册一个监听器，去看看这个监听器是否存在</span></span><br><span class="line">                    Stat stat = zk.exists(path, <span class="keyword">true</span>);</span><br><span class="line"></span><br><span class="line">                    <span class="keyword">if</span> (stat != <span class="keyword">null</span>) &#123;</span><br><span class="line">                        <span class="keyword">this</span>.latch = <span class="keyword">new</span> CountDownLatch(<span class="number">1</span>);</span><br><span class="line">                        <span class="keyword">this</span>.latch.await(waitTime, TimeUnit.MILLISECONDS);</span><br><span class="line">                        <span class="keyword">this</span>.latch = <span class="keyword">null</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                    zookeeper.create(path, <span class="string">""</span>.getBytes(), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);</span><br><span class="line">                    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">                &#125; <span class="keyword">catch</span> (Exception ee) &#123;</span><br><span class="line">                    <span class="keyword">continue</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 释放掉一个分布式锁</span></span><br><span class="line"><span class="comment">     * </span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> productId</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">releaseDistributedLock</span><span class="params">(Long productId)</span> </span>&#123;</span><br><span class="line">        String path = <span class="string">"/product-lock-"</span> + productId;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            zookeeper.delete(path, -<span class="number">1</span>);</span><br><span class="line">            System.out.println(<span class="string">"release the lock for product[id="</span> + productId + <span class="string">"]......"</span>);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 建立zk session的watcher</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="class"><span class="keyword">class</span> <span class="title">ZooKeeperWatcher</span> <span class="keyword">implements</span> <span class="title">Watcher</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">process</span><span class="params">(WatchedEvent event)</span> </span>&#123;</span><br><span class="line">            System.out.println(<span class="string">"Receive watched event: "</span> + event.getState());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (KeeperState.SyncConnected == event.getState()) &#123;</span><br><span class="line">                connectedSemaphore.countDown();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="keyword">this</span>.latch != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">this</span>.latch.countDown();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 封装单例的静态内部类</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">Singleton</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">static</span> ZooKeeperSession instance;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">static</span> &#123;</span><br><span class="line">            instance = <span class="keyword">new</span> ZooKeeperSession();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ZooKeeperSession <span class="title">getInstance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> instance;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 获取单例</span></span><br><span class="line"><span class="comment">     * </span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ZooKeeperSession <span class="title">getInstance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> Singleton.getInstance();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 初始化单例的便捷方法</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        getInstance();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>也可以采用另一种方式，创建临时顺序节点：</p>
+<p>如果有一把锁，被多个人给竞争，此时多个人会排队，第一个拿到锁的人会执行，然后释放锁；后面的每个人都会去监听排在自己前面的那个人创建的 node 上，一旦某个人释放了锁，排在自己后面的人就会被 zookeeper 给通知，一旦被通知了之后，就 ok 了，自己就获取到了锁，就可以执行代码了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ZooKeeperDistributedLock</span> <span class="keyword">implements</span> <span class="title">Watcher</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> ZooKeeper zk;</span><br><span class="line">    <span class="keyword">private</span> String locksRoot = <span class="string">"/locks"</span>;</span><br><span class="line">    <span class="keyword">private</span> String productId;</span><br><span class="line">    <span class="keyword">private</span> String waitNode;</span><br><span class="line">    <span class="keyword">private</span> String lockNode;</span><br><span class="line">    <span class="keyword">private</span> CountDownLatch latch;</span><br><span class="line">    <span class="keyword">private</span> CountDownLatch connectedLatch = <span class="keyword">new</span> CountDownLatch(<span class="number">1</span>);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> sessionTimeout = <span class="number">30000</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ZooKeeperDistributedLock</span><span class="params">(String productId)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.productId = productId;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            String address = <span class="string">"192.168.31.187:2181,192.168.31.19:2181,192.168.31.227:2181"</span>;</span><br><span class="line">            zk = <span class="keyword">new</span> ZooKeeper(address, sessionTimeout, <span class="keyword">this</span>);</span><br><span class="line">            connectedLatch.await();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> LockException(e);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (KeeperException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> LockException(e);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> LockException(e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">process</span><span class="params">(WatchedEvent event)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (event.getState() == KeeperState.SyncConnected) &#123;</span><br><span class="line">            connectedLatch.countDown();</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">this</span>.latch != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">this</span>.latch.countDown();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">acquireDistributedLock</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (<span class="keyword">this</span>.tryLock()) &#123;</span><br><span class="line">                <span class="keyword">return</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                waitForLock(waitNode, sessionTimeout);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (KeeperException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> LockException(e);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> LockException(e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">tryLock</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line"> 		    <span class="comment">// 传入进去的locksRoot + “/” + productId</span></span><br><span class="line">		    <span class="comment">// 假设productId代表了一个商品id，比如说1</span></span><br><span class="line">		    <span class="comment">// locksRoot = locks</span></span><br><span class="line">		    <span class="comment">// /locks/10000000000，/locks/10000000001，/locks/10000000002</span></span><br><span class="line">            lockNode = zk.create(locksRoot + <span class="string">"/"</span> + productId, <span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">0</span>], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);</span><br><span class="line">   </span><br><span class="line">            <span class="comment">// 看看刚创建的节点是不是最小的节点</span></span><br><span class="line">	 	    <span class="comment">// locks：10000000000，10000000001，10000000002</span></span><br><span class="line">            List&lt;String&gt; locks = zk.getChildren(locksRoot, <span class="keyword">false</span>);</span><br><span class="line">            Collections.sort(locks);</span><br><span class="line">	</span><br><span class="line">            <span class="keyword">if</span>(lockNode.equals(locksRoot+<span class="string">"/"</span>+ locks.get(<span class="number">0</span>)))&#123;</span><br><span class="line">                <span class="comment">//如果是最小的节点,则表示取得锁</span></span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">            &#125;</span><br><span class="line">	</span><br><span class="line">            <span class="comment">//如果不是最小的节点，找到比自己小1的节点</span></span><br><span class="line">	  <span class="keyword">int</span> previousLockIndex = -<span class="number">1</span>;</span><br><span class="line">            <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; locks.size(); i++) &#123;</span><br><span class="line">		<span class="keyword">if</span>(lockNode.equals(locksRoot + “/” + locks.get(i))) &#123;</span><br><span class="line">	         	    previousLockIndex = i - <span class="number">1</span>;</span><br><span class="line">		    <span class="keyword">break</span>;</span><br><span class="line">		&#125;</span><br><span class="line">	   &#125;</span><br><span class="line">	   </span><br><span class="line">	   <span class="keyword">this</span>.waitNode = locks.get(previousLockIndex);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (KeeperException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> LockException(e);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> LockException(e);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">waitForLock</span><span class="params">(String waitNode, <span class="keyword">long</span> waitTime)</span> <span class="keyword">throws</span> InterruptedException, KeeperException </span>&#123;</span><br><span class="line">        Stat stat = zk.exists(locksRoot + <span class="string">"/"</span> + waitNode, <span class="keyword">true</span>);</span><br><span class="line">        <span class="keyword">if</span> (stat != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">this</span>.latch = <span class="keyword">new</span> CountDownLatch(<span class="number">1</span>);</span><br><span class="line">            <span class="keyword">this</span>.latch.await(waitTime, TimeUnit.MILLISECONDS);</span><br><span class="line">            <span class="keyword">this</span>.latch = <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">unlock</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 删除/locks/10000000000节点</span></span><br><span class="line">            <span class="comment">// 删除/locks/10000000001节点</span></span><br><span class="line">            System.out.println(<span class="string">"unlock "</span> + lockNode);</span><br><span class="line">            zk.delete(lockNode, -<span class="number">1</span>);</span><br><span class="line">            lockNode = <span class="keyword">null</span>;</span><br><span class="line">            zk.close();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (KeeperException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">LockException</span> <span class="keyword">extends</span> <span class="title">RuntimeException</span> </span>&#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = <span class="number">1L</span>;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">LockException</span><span class="params">(String e)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">super</span>(e);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">LockException</span><span class="params">(Exception e)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">super</span>(e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>基于<code>Redis</code> 和 <code>Zk</code> 来实现分布式锁其实有一个最本质的区别:</p>
+<ul>
+<li>redis 分布式锁，其实需要自己不断去尝试获取锁，比较消耗性能。</li>
+<li>zk 分布式锁，获取不到锁，注册个监听器即可，不需要不断主动尝试获取锁，性能开销较小。</li>
+</ul>
+<p>另外一点就是，如果是 redis 获取锁的那个客户端 出现 bug 挂了，那么只能等待超时时间之后才能释放锁；而 zk 的话，因为创建的是临时 znode，只要客户端挂了，znode 就没了，此时就自动释放锁。</p>
+<p>但是，在我们高并发的场景下，基于Zookeeper实现的分布式锁的<code>qps</code>不能太高，其性能是要低于<code>Redis</code>的，所以总的来说，基于<code>Zookeeper</code>和 <code>Redis</code> 实现的分布式锁各有优缺点，大家在选择的时候可以根据业务具体去看哪一种符合你的业务场景。</p>
+
+        </div>
+
+        <blockquote class="post-copyright">
+    
+    <div class="content">
+        
+<span class="post-time">
+    最后更新时间：<time datetime="2019-01-22T07:22:15.577Z" itemprop="dateUpdated">2019-01-22 07:22:15</time>
+</span><br>
+
+
+        
+        这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="/posts/undefined/" target="_blank" rel="external">https://blog.xiaoyuervae.cn/posts/undefined/</a>
+        
+    </div>
+    
+    <footer>
+        <a href="https://blog.xiaoyuervae.cn">
+            <img src="/img/avatar.jpg" alt="老鱼头">
+            老鱼头
+        </a>
+    </footer>
+</blockquote>
+
+        
+<div class="page-reward">
+    <a id="rewardBtn" href="javascript:;" class="page-reward-btn waves-effect waves-circle waves-light">赏</a>
+</div>
+
+
+
+        <div class="post-footer">
+            
+
+            
+<div class="page-share-wrap">
+    
+
+<div class="page-share" id="pageShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://blog.xiaoyuervae.cn/posts/undefined/&title=《分布式锁的应用》 — 青春住了谁&pic=https://blog.xiaoyuervae.cn/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://blog.xiaoyuervae.cn/posts/undefined/&title=《分布式锁的应用》 — 青春住了谁&source=" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://blog.xiaoyuervae.cn/posts/undefined/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《分布式锁的应用》 — 青春住了谁&url=https://blog.xiaoyuervae.cn/posts/undefined/&via=https://blog.xiaoyuervae.cn" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://blog.xiaoyuervae.cn/posts/undefined/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+
+    <a href="javascript:;" id="shareFab" class="page-share-fab waves-effect waves-circle">
+        <i class="icon icon-share-alt icon-lg"></i>
+    </a>
+</div>
+
+
+
+        </div>
+    </div>
+
+    
+<nav class="post-nav flex-row flex-justify-between flex-row-reverse">
+  
+
+  
+    <div class="waves-block waves-effect next">
+      <a href="/posts/1044148734/" id="post-next" class="post-nav-link">
+        <div class="tips">Next <i class="icon icon-angle-right icon-lg icon-pl"></i></div>
+        <h4 class="title">RocketMq 学习之核心参数</h4>
+      </a>
+    </div>
+  
+</nav>
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Valine Comments -->
+    <div class="comments vcomment" id="comments"></div>
+    <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+    <script src="//unpkg.com/valine@latest/dist/Valine.min.js"></script>
+    <!-- Valine Comments script -->
+    <script>
+        var GUEST_INFO = ['nick','mail','link'];
+        var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+          return GUEST_INFO.indexOf(item) > -1
+        });
+        new Valine({
+            el: '#comments',
+            notify: 'false' == 'true',
+            verify: 'false' == 'true',
+            appId: "NhW1Ae88ntG5C6r1SgC0DieH-gzGzoHsz",
+            appKey: "cOUmk5RjOkfPAznRCHlTDd6S",
+            avatar: "retro",
+            placeholder: "爱评论的人运气通常都不会太差！",
+            guest_info: guest_info.length == 0 ? GUEST_INFO : guest_info,
+            pageSize: "10"
+        })
+    </script>
+    <!-- Valine Comments end -->
+
+
+
+
+
+
+
+</article>
+
+<div id="reward" class="page-modal reward-lay">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <h3 class="reward-title">
+        <i class="icon icon-quote-left"></i>
+        感恩~
+        <i class="icon icon-quote-right"></i>
+    </h3>
+    <div class="reward-content">
+        
+        <div class="reward-code">
+            <img id="rewardCode" src="/img/wechat.jpg" alt="打赏二维码">
+        </div>
+        
+        <label class="reward-toggle">
+            <input id="rewardToggle" type="checkbox" class="reward-toggle-check" data-wechat="/img/wechat.jpg" data-alipay="/img/alipay.jpg">
+            <div class="reward-toggle-ctrol">
+                <span class="reward-toggle-item wechat">微信</span>
+                <span class="reward-toggle-label"></span>
+                <span class="reward-toggle-item alipay">支付宝</span>
+            </div>
+        </label>
+        
+    </div>
+</div>
+
+
+
+</div>
+
+        <footer class="footer">
+    <div class="top">
+        
+<p>
+    <span id="busuanzi_container_site_uv" style="display:none">
+        站点总访客数：<span id="busuanzi_value_site_uv"></span>
+    </span>
+    <span id="busuanzi_container_site_pv" style="display:none">
+        站点总访问量：<span id="busuanzi_value_site_pv"></span>
+    </span>
+</p>
+
+
+        <p>
+            
+                <span><a href="/atom.xml" target="_blank" class="rss" title="rss"><i class="icon icon-lg icon-rss"></i></a></span>
+            
+            <span>博客内容遵循 <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh">知识共享 署名 - 非商业性 - 相同方式共享 4.0 国际协议</a></span>
+        </p>
+    </div>
+    <div class="bottom">
+        <p><span>老鱼头 &copy; 2018 - 2019</span>
+            <span>
+                
+                <a href="http://www.miitbeian.gov.cn/" target="_blank">浙ICP备18052095号-1</a><br>
+                
+                Power by <a href="http://hexo.io/" target="_blank">Hexo</a> Theme <a href="https://github.com/yscoder/hexo-theme-indigo" target="_blank">indigo</a>
+            </span>
+        </p>
+    </div>
+</footer>
+
+    </main>
+    <div class="mask" id="mask"></div>
+<a href="javascript:;" id="gotop" class="waves-effect waves-circle waves-light"><span class="icon icon-lg icon-chevron-up"></span></a>
+
+
+
+<div class="global-share" id="globalShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://blog.xiaoyuervae.cn/posts/undefined/&title=《分布式锁的应用》 — 青春住了谁&pic=https://blog.xiaoyuervae.cn/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://blog.xiaoyuervae.cn/posts/undefined/&title=《分布式锁的应用》 — 青春住了谁&source=" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://blog.xiaoyuervae.cn/posts/undefined/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《分布式锁的应用》 — 青春住了谁&url=https://blog.xiaoyuervae.cn/posts/undefined/&via=https://blog.xiaoyuervae.cn" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://blog.xiaoyuervae.cn/posts/undefined/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+<div class="page-modal wx-share" id="wxShare">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAAAAACs8KCBAAACK0lEQVR42u3aO3LDMBAEUd//0nTqQAR7BpSrADQiF0UJeAzW++HPD17Xn9Xdya+QXcolQ4aMZRnXcN1tQLa8u//u1/i3PuwrQ4aMAxjkEOTT8bfuDjd+WOOzyZAhQ8b4HhJ8HwJlta8MGTJk8IBLkrw01ZMhQ4aMmSJ2pjU2bsORZPG1WlyGDBkLMvgh/v/vr8w3ZMiQsRTjChdPCvk4gYfX21PJkCFjawYPcPzoPDUMClSSaMqQIeMABmnrz6eM5NDdFRkyZOzKIC0w0u4n17sBAzqDDBkyjmHwFnw3hiQN/TL1lCFDxmGM7vWLrlXHw/TDmWXIkHEkg0Qz3iCbf1gP35IhQ8YBDP6CRboxL2t5s+/D3zJkyNiaMQNIN07L1+66DBky9mN0YZGPLbtP08ckQ4aM0xh8nNk10brQjP4/yJAhY1NG2lYjL0x0jbOuqVd2EGXIkLEgo9uAp5UzsKDolSFDxgEM3t6aaf3zJC994UOGDBl7M9LiljDScvcrZa0MGTI2YpCbCKzrgJEgjspaGTJkHMBIw2tX6HJM/BKGDBkyDmOkgTgdIcTlKBmLypAhY1PGFa60Jde1+OPfkSFDxtYMvjiJB9n5oBzDZMiQsSxjpuHFx5Z8kNmNPGXIkHECo3utIR1J8ntipAwZMmSECV8HJs21h6abDBkyZLxU3KZHRCmmDBkyDmDMDAO6R8AB6H4ZMmRszXirl8UTwfQ3XxtqypAhYz3GL1/RslAP/88bAAAAAElFTkSuQmCC" alt="微信分享二维码">
+</div>
+
+
+
+
+    <script src="//cdn.bootcss.com/node-waves/0.7.4/waves.min.js"></script>
+<script>
+var BLOG = { ROOT: '/', SHARE: true, REWARD: true };
+
+
+</script>
+
+<script src="/js/main.min.js?v=1.7.2"></script>
+
+
+<div class="search-panel" id="search-panel">
+    <ul class="search-result" id="search-result"></ul>
+</div>
+<template id="search-tpl">
+<li class="item">
+    <a href="{path}" class="waves-block waves-effect">
+        <div class="title ellipsis" title="{title}">{title}</div>
+        <div class="flex-row flex-middle">
+            <div class="tags ellipsis">
+                {tags}
+            </div>
+            <time class="flex-col time">{date}</time>
+        </div>
+    </a>
+</li>
+</template>
+
+<script src="/js/search.min.js?v=1.7.2" async></script>
+
+
+
+
+
+
+<script async src="//dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+    
+
+    
+
+    
+
+
+
+    <meta charset="utf-8">
+    
+    
+    
+    
+    <title>记一次排查线上CPU飚高的问题 | 青春住了谁 | 只有真正了解自己想要什么，才能知道自己该干什么。</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    
+    <meta name="theme-color" content="#3F51B5">
+    
+    
+    <meta name="keywords" content="java">
+    <meta name="description" content="记一次排查线上机器CPU飙升的问题最近我们的报表系统经常受到短信和邮件告警。 由于这个服务是专门用来做报表导出的、每天在跑各种报表任务、做XML解析，很多情况下还是多个任务在跑的，所以之前也没怎么关心，运维也反馈过告警有点频繁。 安排组里相关同学看了一下，也做了一些导出的限制，但是效果好像不是很好。 昨天早上系统疯狂告警、从8点钟开始告警，然后看了一下相关的问题。下面是具体的排查过程 查看机器相关">
+<meta name="keywords" content="java">
+<meta property="og:type" content="article">
+<meta property="og:title" content="记一次排查线上CPU飚高的问题">
+<meta property="og:url" content="https://blog.xiaoyuervae.cn/posts/1407851176/index.html">
+<meta property="og:site_name" content="青春住了谁">
+<meta property="og:description" content="记一次排查线上机器CPU飙升的问题最近我们的报表系统经常受到短信和邮件告警。 由于这个服务是专门用来做报表导出的、每天在跑各种报表任务、做XML解析，很多情况下还是多个任务在跑的，所以之前也没怎么关心，运维也反馈过告警有点频繁。 安排组里相关同学看了一下，也做了一些导出的限制，但是效果好像不是很好。 昨天早上系统疯狂告警、从8点钟开始告警，然后看了一下相关的问题。下面是具体的排查过程 查看机器相关">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6b6l22mj20we0o8do2.jpg">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6cgg7vej20jh0ckmze.jpg">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6cztd18j20cf0bc0sw.jpg">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6ef2g5rj20mj054aao.jpg">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6eugituj20e80a03yu.jpg">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6fgbwomj212801i74w.jpg">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6dhoowcj20np0bljsx.jpg">
+<meta property="og:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6guj8cmj20rs086aas.jpg">
+<meta property="og:updated_time" content="2019-01-22T07:22:15.577Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="记一次排查线上CPU飚高的问题">
+<meta name="twitter:description" content="记一次排查线上机器CPU飙升的问题最近我们的报表系统经常受到短信和邮件告警。 由于这个服务是专门用来做报表导出的、每天在跑各种报表任务、做XML解析，很多情况下还是多个任务在跑的，所以之前也没怎么关心，运维也反馈过告警有点频繁。 安排组里相关同学看了一下，也做了一些导出的限制，但是效果好像不是很好。 昨天早上系统疯狂告警、从8点钟开始告警，然后看了一下相关的问题。下面是具体的排查过程 查看机器相关">
+<meta name="twitter:image" content="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6b6l22mj20we0o8do2.jpg">
+    
+        <link rel="alternate" type="application/atom+xml" title="青春住了谁" href="/atom.xml">
+    
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/css/style.css?v=1.7.2">
+    <script>window.lazyScripts=[]</script>
+
+    <!-- custom head -->
+    
+
+</head>
+
+<body>
+    <div id="loading" class="active"></div>
+
+    <style>
+  #aplayer {
+    width: 220px;
+    margin-top: 20px;
+  }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aplayer/1.10.1/APlayer.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aplayer/1.10.1/APlayer.min.js"></script>
+<aside id="menu" class="hide">
+  <div class="inner flex-row-vertical">
+    <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
+      <i class="icon icon-lg icon-close"></i>
+    </a>
+    <div class="brand-wrap" style="background-image:url(/img/brand.jpg)">
+      <div class="brand">
+        <a href="/" class="avatar waves-effect waves-circle waves-light">
+          <img src="/img/avatar.jpg">
+        </a>
+        <hgroup class="introduce">
+          <h5 class="nickname">
+            老鱼头
+          </h5>
+          <a href="mailto:xiaoyuervae@icloud.com" title="xiaoyuervae@icloud.com" class="mail">xiaoyuervae@icloud.com</a>
+        </hgroup>
+      </div>
+    </div>
+    <div class="scroll-wrap flex-col">
+      <ul class="nav">
+        
+        <li class="waves-block waves-effect">
+          <a href="/">
+            <i class="icon icon-lg icon-home"></i>
+            主页
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/archives">
+            <i class="icon icon-lg icon-archives"></i>
+            归档
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/tags">
+            <i class="icon icon-lg icon-tags"></i>
+            标签
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/categories">
+            <i class="icon icon-lg icon-th-list"></i>
+            分类
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/books">
+            <i class="icon icon-lg icon-bookmark"></i>
+            读书
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/movies">
+            <i class="icon icon-lg icon-film"></i>
+            电影
+          </a>
+        </li>
+        
+        <div id="music" "="">
+          <div id="aplayer"></div>
+        </div>
+        
+      </ul>
+    </div>
+  </div>
+</aside>
+<script>
+  const app = new APlayer({
+    container: document.getElementById('aplayer'),
+    autoplay: true,
+    loop: 'all',
+    order: 'random',
+    preload: 'auto',
+    volume: 0.7,
+    mutex: true, 
+    audio: [ {
+      name: '青春住了谁',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=505451285.mp3',
+      cover: 'http://p1.music.126.net/f8I94rzjMCzZJ0q1fR0ftw==/109951163023754735.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '挂失的青春',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=29794917.mp3',
+      cover: 'http://p1.music.126.net/caUiTL1FaolgWpSWy0Hnqg==/109951163249803409.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '喜剧收场',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=29794921.mp3',
+      cover: 'http://p2.music.126.net/F06r32IxFWWquGjY3bl40w==/3401888991666195.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '耳朵',
+      artist: '李荣浩',
+      url: 'http://music.163.com/song/media/outer/url?id=1318235595.mp3',
+      cover: 'http://p1.music.126.net/tt8xwK-ASC2iqXNUXYKoDQ==/109951163606377163.jpg?param=130y130',
+      theme: '#46718b'
+    }]
+  });
+</script>
+    <main id="main">
+        <header class="top-header" id="header">
+    <div class="flex-row">
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light on" id="menu-toggle">
+          <i class="icon icon-lg icon-navicon"></i>
+        </a>
+        <div class="flex-col header-title ellipsis">记一次排查线上CPU飚高的问题</div>
+        
+        <div class="search-wrap" id="search-wrap">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
+                <i class="icon icon-lg icon-chevron-left"></i>
+            </a>
+            <input type="text" id="key" class="search-input" autocomplete="off" placeholder="输入感兴趣的关键字">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="search">
+                <i class="icon icon-lg icon-search"></i>
+            </a>
+        </div>
+        
+        
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menuShare">
+            <i class="icon icon-lg icon-share-alt"></i>
+        </a>
+        
+    </div>
+</header>
+<header class="content-header post-header">
+
+    <div class="container fade-scale">
+        <h1 class="title">记一次排查线上CPU飚高的问题</h1>
+        <h5 class="subtitle">
+            
+                <time datetime="2018-11-22T22:08:23.000Z" itemprop="datePublished" class="page-time">
+  2018-11-22
+</time>
+
+
+            
+        </h5>
+    </div>
+
+    
+
+
+</header>
+
+
+<div class="container body-wrap">
+    
+    <aside class="post-widget">
+        <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
+            <h4>TOC</h4>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-1"><a class="post-toc-link" href="#记一次排查线上机器CPU飙升的问题"><span class="post-toc-number">1.</span> <span class="post-toc-text">记一次排查线上机器CPU飙升的问题</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#查看机器相关状态"><span class="post-toc-number">1.0.1.</span> <span class="post-toc-text">查看机器相关状态</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#使用Arthas的thread命令查看线程占用资源状态"><span class="post-toc-number">1.0.2.</span> <span class="post-toc-text">使用Arthas的thread命令查看线程占用资源状态</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#定位相关代码、分析问题原因"><span class="post-toc-number">1.0.3.</span> <span class="post-toc-text">定位相关代码、分析问题原因</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#JDK设计模式-Service-Provider机制（SPI）"><span class="post-toc-number">1.0.4.</span> <span class="post-toc-text">JDK设计模式 - Service Provider机制（SPI）</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#得出结论"><span class="post-toc-number">1.0.5.</span> <span class="post-toc-text">得出结论</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#提出解决办法、进行尝试"><span class="post-toc-number">1.0.6.</span> <span class="post-toc-text">提出解决办法、进行尝试</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#上线验证结果"><span class="post-toc-number">1.0.7.</span> <span class="post-toc-text">上线验证结果</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#总结"><span class="post-toc-number">1.0.8.</span> <span class="post-toc-text">总结</span></a></li></ol></li></ol>
+        </nav>
+    </aside>
+
+
+<article id="post-记一次排查线上CPU飚高的问题" class="post-article article-type-post fade" itemprop="blogPost">
+
+    <div class="post-card">
+        <h1 class="post-card-title">记一次排查线上CPU飚高的问题</h1>
+        <div class="post-meta">
+            <time class="post-time" title="2018-11-22 22:08:23" datetime="2018-11-22T22:08:23.000Z" itemprop="datePublished">2018-11-22</time>
+
+            
+
+
+            
+<span id="busuanzi_container_page_pv" title="文章总阅读量" style="display:none">
+    <i class="icon icon-eye icon-pr"></i><span id="busuanzi_value_page_pv"></span>
+</span>
+
+
+        </div>
+        <div class="post-content" id="post-content" itemprop="postContent">
+            <h1 id="记一次排查线上机器CPU飙升的问题"><a href="#记一次排查线上机器CPU飙升的问题" class="headerlink" title="记一次排查线上机器CPU飙升的问题"></a>记一次排查线上机器CPU飙升的问题</h1><p>最近我们的报表系统经常受到短信和邮件告警。</p>
+<p>由于这个服务是专门用来做报表导出的、每天在跑各种报表任务、做XML解析，很多情况下还是多个任务在跑的，所以之前也没怎么关心，运维也反馈过告警有点频繁。</p>
+<p>安排组里相关同学看了一下，也做了一些导出的限制，但是效果好像不是很好。</p>
+<p>昨天早上系统疯狂告警、从8点钟开始告警，然后看了一下相关的问题。下面是具体的排查过程</p>
+<h3 id="查看机器相关状态"><a href="#查看机器相关状态" class="headerlink" title="查看机器相关状态"></a>查看机器相关状态</h3><p>在监控系统中查看了一下机器的CPU和内存的状态:</p>
+<p>机器整天的CPU占用状态达到了90%、初步判断有相关线程在进行相关耗资源的操作（可能是死循环、频繁IO等）</p>
+<p>于是打算到机器上查看当前占用CPU资源的线程。</p>
+<h3 id="使用Arthas的thread命令查看线程占用资源状态"><a href="#使用Arthas的thread命令查看线程占用资源状态" class="headerlink" title="使用Arthas的thread命令查看线程占用资源状态"></a>使用Arthas的<code>thread</code>命令查看线程占用资源状态</h3><p><code>arthas</code>是Alibaba开源的Java诊断利器、应该是今年上半年开源的，使用起来非常方便。这里贴出来github地址: <a href="https://github.com/alibaba/arthas/blob/master/README_CN.md" target="_blank" rel="noopener">Arthas</a></p>
+<p>使用<code>thread</code> 命令查看当前线程信息、查看线程的堆栈。</p>
+<p>我装好arthas之后使用thread命令查看了当前最忙的5个线程并打印堆栈, 发现占用CPU资源最高的是这个线程<code>pool-9-thread-1</code>(开发竟然没对线程池进行命名orz…):</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6b6l22mj20we0o8do2.jpg" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>这个线程竟然整整占了一个核心的资源（机器配置4C 4G）</p>
+<p>同时我们能在打印的堆栈中看到如下信息</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">- locked java.io.FileNotFoundException</span><br><span class="line"></span><br><span class="line">---</span><br><span class="line"></span><br><span class="line">Number of locked synchronizers = <span class="number">1</span></span><br></pre></td></tr></table></figure>
+<p>说明当前线程阻塞住了其他线程、应用卡主了，通常是由于线程拿住了某个锁， 并且其他线程都在等待这把锁造成的。</p>
+<h3 id="定位相关代码、分析问题原因"><a href="#定位相关代码、分析问题原因" class="headerlink" title="定位相关代码、分析问题原因"></a>定位相关代码、分析问题原因</h3><p><img src="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6cgg7vej20jh0ckmze.jpg" alt=""></p>
+<p>找到问题出现的代码在这里：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">doc = DocumentHelper.parseText(message.getXml)</span><br></pre></td></tr></table></figure>
+<p>先不要吐槽代码写的好不好，当时看到这个就有点懵逼了，这只是一句正常的XML解析的逻辑，用了dom4j里面的解析文本的方法，怎么就能够把CPU跑满呢？</p>
+<p>带着问题我看了一下里面的具体实现, 里面大体的逻辑是先去获取XMLReader, 即选取XML解析器，然后对XML进行解析。我们看到线程打印的堆栈最终是出现了<code>FileNotFoundException</code>, 那为什么会出现这个异常呢?</p>
+<h3 id="JDK设计模式-Service-Provider机制（SPI）"><a href="#JDK设计模式-Service-Provider机制（SPI）" class="headerlink" title="JDK设计模式 - Service Provider机制（SPI）"></a>JDK设计模式 - Service Provider机制（SPI）</h3><figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6cztd18j20cf0bc0sw.jpg" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>为什么要说这个呢，因为在上面的选取XML解析器的过程中就用到了这个机制，抱着好奇的心态我debug了一下这个parseText代码, 在选取 XML 解析器的代码中:</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6ef2g5rj20mj054aao.jpg" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>这个<code>FactoryFinder.find()</code>是寻找XML解析器的逻辑:</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6eugituj20e80a03yu.jpg" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> Object <span class="title">find</span><span class="params">(String factoryId, String fallbackClassName)</span></span></span><br><span class="line"><span class="function">        <span class="keyword">throws</span> ConfigurationError</span></span><br><span class="line"><span class="function">    </span>&#123;        </span><br><span class="line">        dPrint(<span class="string">"find factoryId ="</span> + factoryId);</span><br><span class="line">        </span><br><span class="line">        <span class="comment">// Use the system property first</span></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            String systemProp = ss.getSystemProperty(factoryId);</span><br><span class="line">            <span class="keyword">if</span> (systemProp != <span class="keyword">null</span>) &#123;                </span><br><span class="line">                dPrint(<span class="string">"found system property, value="</span> + systemProp);</span><br><span class="line">                <span class="keyword">return</span> newInstance(systemProp, <span class="keyword">null</span>, <span class="keyword">true</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; </span><br><span class="line">        <span class="keyword">catch</span> (SecurityException se) &#123;</span><br><span class="line">            <span class="keyword">if</span> (debug) se.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// try to read from $java.home/lib/jaxp.properties</span></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            String factoryClassName = <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">if</span> (firstTime) &#123;</span><br><span class="line">                <span class="keyword">synchronized</span> (cacheProps) &#123;</span><br><span class="line">                    <span class="keyword">if</span> (firstTime) &#123;</span><br><span class="line">                        String configFile = ss.getSystemProperty(<span class="string">"java.home"</span>) + </span><br><span class="line">                        File.separator+</span><br><span class="line">                            <span class="string">"lib"</span> + File.separator + <span class="string">"jaxp.properties"</span>;</span><br><span class="line">                        File f = <span class="keyword">new</span> File(configFile);</span><br><span class="line">                        firstTime = <span class="keyword">false</span>;</span><br><span class="line">                        <span class="keyword">if</span> (ss.doesFileExist(f)) &#123;</span><br><span class="line">                            dPrint(<span class="string">"Read properties file "</span>+f);</span><br><span class="line">                            cacheProps.load(ss.getFileInputStream(f));</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            factoryClassName = cacheProps.getProperty(factoryId);            </span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (factoryClassName != <span class="keyword">null</span>) &#123;</span><br><span class="line">                dPrint(<span class="string">"found in $java.home/jaxp.properties, value="</span> + </span><br><span class="line">                factoryClassName);</span><br><span class="line">                <span class="keyword">return</span> newInstance(factoryClassName, <span class="keyword">null</span>, <span class="keyword">true</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; </span><br><span class="line">        <span class="keyword">catch</span> (Exception ex) &#123;</span><br><span class="line">            <span class="keyword">if</span> (debug) ex.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Try Jar Service Provider Mechanism</span></span><br><span class="line">        Object provider = findJarServiceProvider(factoryId);</span><br><span class="line">        <span class="keyword">if</span> (provider != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> provider;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (fallbackClassName == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ConfigurationError(</span><br><span class="line">                <span class="string">"Provider for "</span> + factoryId + <span class="string">" cannot be found"</span>, <span class="keyword">null</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        dPrint(<span class="string">"loaded from fallback value: "</span> + fallbackClassName);</span><br><span class="line">        <span class="keyword">return</span> newInstance(fallbackClassName, <span class="keyword">null</span>, <span class="keyword">true</span>);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>总共是下面四步:</p>
+<p>第一步： 检查系统属性（systemProperty）是否设置了javax.xml.parsers.SAXParserFactory  属性值，如果设置了，就使用设置的属性值来返回SAXParserFactory 对象。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">String systemProp = ss.getSystemProperty(factoryId);         </span><br><span class="line"><span class="keyword">if</span> (systemProp != <span class="keyword">null</span>) &#123;                </span><br><span class="line">       dPrint(<span class="string">"found system property, value="</span> + systemProp);</span><br><span class="line">       <span class="keyword">return</span> newInstance(systemProp, <span class="keyword">null</span>, <span class="keyword">true</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>若没找到，进行第二步</p>
+<p>第二步：检查java.home/lib/jaxp.properties 属性配置文件中是否有javax.xml.parsers.SAXParserFactory。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// try to read from $java.home/lib/jaxp.properties</span></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    String factoryClassName = <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">if</span> (firstTime) &#123;</span><br><span class="line">        <span class="keyword">synchronized</span> (cacheProps) &#123;</span><br><span class="line">            <span class="keyword">if</span> (firstTime) &#123;</span><br><span class="line">                String configFile = ss.getSystemProperty(<span class="string">"java.home"</span>) + File.separator +</span><br><span class="line">                    <span class="string">"lib"</span> + File.separator + <span class="string">"jaxp.properties"</span>;</span><br><span class="line">                File f = <span class="keyword">new</span> File(configFile);</span><br><span class="line">                firstTime = <span class="keyword">false</span>;</span><br><span class="line">                <span class="keyword">if</span> (ss.doesFileExist(f)) &#123;</span><br><span class="line">                    dPrint(<span class="string">"Read properties file "</span>+f);</span><br><span class="line">                    cacheProps.load(ss.getFileInputStream(f));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    factoryClassName = cacheProps.getProperty(factoryId);</span><br></pre></td></tr></table></figure>
+<p>有则返回，无则进入第三步</p>
+<p>第三步：    使用jar包的Service Provider机制，加载工厂类。也就是说，查找所有加载的jar包中META-INF/services目录下的配置文件，文件名为 javax.xml.parsers.SAXParserFactory。文件的内容就是该jar包内提供的类实例。比如xercesImple-2.x.x.jar提供的org.apache.xerces.jaxp.SAXParserFactoryImpl.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Try Jar Service Provider Mechanism</span></span><br><span class="line">Object provider = findJarServiceProvider(factoryId);</span><br><span class="line"><span class="keyword">if</span> (provider != <span class="keyword">null</span>) &#123;</span><br><span class="line">     <span class="keyword">return</span> provider;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果找不到，则进入最后第四步，使用默认的配置<br>第四步：使用系统默认的工厂类：</p>
+<p>com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (fallbackClassName == <span class="keyword">null</span>) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> ConfigurationError(</span><br><span class="line">        <span class="string">"Provider for "</span> + factoryId + <span class="string">" cannot be found"</span>, <span class="keyword">null</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">dPrint(<span class="string">"loaded from fallback value: "</span> + fallbackClassName);</span><br><span class="line"><span class="keyword">return</span> newInstance(fallbackClassName, <span class="keyword">null</span>, <span class="keyword">true</span>);</span><br></pre></td></tr></table></figure>
+<p>在没有进行任何配置以及使用第三方jar包的情况下，最终程序都会走到第四步，返回系统默认的工厂类。</p>
+<h3 id="得出结论"><a href="#得出结论" class="headerlink" title="得出结论"></a>得出结论</h3><blockquote>
+<p>刚好我们的代码就是走到了这里面的逻辑, 寻找XML解析器里面的逻辑上面四步都走了，然后返回默认的工厂类, 且每次都会去通过<code>SPI</code>到加载的jar包中寻找文件, 找不到便会 lock 住FileNotFoundException, 执行一次这个代码可能还好, 但是这段导报表的逻辑是需要循环差不多9w次！！！</p>
+</blockquote>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6fgbwomj212801i74w.jpg" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>9w次不断的遍历jar包寻找文件，然后不断的抛出 FileNotFoundException, 怪不得会把CPU飙升到90%。</p>
+<p>其实我也在想为什么遍历完一次之后这边的解析逻辑中为什么不会把解析后的逻辑缓存一份，下次不用再去寻找这个文件，有点困惑、、、</p>
+<h3 id="提出解决办法、进行尝试"><a href="#提出解决办法、进行尝试" class="headerlink" title="提出解决办法、进行尝试"></a>提出解决办法、进行尝试</h3><p>找到问题之后问题就比较好解决了，主要是因为去使用SPI机制寻找jar文件的过程会比较消耗CPU，<br>我们只要不让他去寻找，早先设置好默认的工厂类就好了。</p>
+<p>可选择的方法应该有如下四种:</p>
+<p>1.在运行java时，通过设置系统属性<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -D javax.xml.parsers.SAXParserFactory=<span class="keyword">new</span> com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl</span><br></pre></td></tr></table></figure></p>
+<p>2.方法二:在程序中调用<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">System.setProperty(“javax.xml.parsers.SAXParserFactory”,” com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl”)</span><br></pre></td></tr></table></figure></p>
+<p>  来设定实际的XML解析器.</p>
+<p>3.方法三:编写一个jaxp.properties文件，在其中加入如下内容</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">javax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl</span><br></pre></td></tr></table></figure>
+<p>  再将此文件放入JAVA_HOME/lib/下</p>
+<p> 4.方法四:在打得jar包下，在目录META-INF/下新建一个services目录，在此目录新建一个文件名为</p>
+<p><code>javax.xml.parsers.SAXParserFactory</code></p>
+<p>的文件，文件内容写上实际使用的解析器类，如写</p>
+<p><code>com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl</code></p>
+<p>，这样在加载jar包之后，就会找到这个xml解析工厂。</p>
+<p>最终我这边为了方便采取了第二种方式:</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6dhoowcj20np0bljsx.jpg" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<h3 id="上线验证结果"><a href="#上线验证结果" class="headerlink" title="上线验证结果"></a>上线验证结果</h3><figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="http://ww1.sinaimg.cn/large/e1417e4bgy1fxh6guj8cmj20rs086aas.jpg" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>上面是上线后第二天观察到的机器load情况，可以看到有很明显的改善！</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>通过这次排查问题，我对JAXP有一个比较深的了解，其实，JAVA中有许多这种思想（Service Provider）的做法，这种思想，，就是平台无关性，发展到不依赖于具体的实现。</p>
+<p>如我们熟悉的JNDI，JDBC，JAXP等。JNDI是抽像各种目录服务操作的类库，因为目录服务器厂商太多了，如SUN公司的ldapsdk, 还有novell公司等等。JDBC是抽像各种数据库操作的类库，因为数据库厂商也太多了，如ORACLE，SQLSERVER，MYSQL，INFORMIX等等。JAXP就是抽像各种XML解析器和转换器产品的类库，因为XML解析器和转换器产品够多的了。sun公司自己实现的HttpServer也是基于Service Provide机制。</p>
+
+        </div>
+
+        <blockquote class="post-copyright">
+    
+    <div class="content">
+        
+<span class="post-time">
+    最后更新时间：<time datetime="2019-01-22T07:22:15.577Z" itemprop="dateUpdated">2019-01-22 07:22:15</time>
+</span><br>
+
+
+        
+        这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="/posts/1407851176/" target="_blank" rel="external">https://blog.xiaoyuervae.cn/posts/1407851176/</a>
+        
+    </div>
+    
+    <footer>
+        <a href="https://blog.xiaoyuervae.cn">
+            <img src="/img/avatar.jpg" alt="老鱼头">
+            老鱼头
+        </a>
+    </footer>
+</blockquote>
+
+        
+<div class="page-reward">
+    <a id="rewardBtn" href="javascript:;" class="page-reward-btn waves-effect waves-circle waves-light">赏</a>
+</div>
+
+
+
+        <div class="post-footer">
+            
+	<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/java/">java</a></li></ul>
+
+
+            
+<div class="page-share-wrap">
+    
+
+<div class="page-share" id="pageShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://blog.xiaoyuervae.cn/posts/1407851176/&title=《记一次排查线上CPU飚高的问题》 — 青春住了谁&pic=https://blog.xiaoyuervae.cn/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://blog.xiaoyuervae.cn/posts/1407851176/&title=《记一次排查线上CPU飚高的问题》 — 青春住了谁&source=" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://blog.xiaoyuervae.cn/posts/1407851176/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《记一次排查线上CPU飚高的问题》 — 青春住了谁&url=https://blog.xiaoyuervae.cn/posts/1407851176/&via=https://blog.xiaoyuervae.cn" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://blog.xiaoyuervae.cn/posts/1407851176/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+
+    <a href="javascript:;" id="shareFab" class="page-share-fab waves-effect waves-circle">
+        <i class="icon icon-share-alt icon-lg"></i>
+    </a>
+</div>
+
+
+
+        </div>
+    </div>
+
+    
+<nav class="post-nav flex-row flex-justify-between">
+  
+    <div class="waves-block waves-effect prev">
+      <a href="/posts/611001842/" id="post-prev" class="post-nav-link">
+        <div class="tips"><i class="icon icon-angle-left icon-lg icon-pr"></i> Prev</div>
+        <h4 class="title">一次排查MongoDB CPU过高、服务无响应的问题</h4>
+      </a>
+    </div>
+  
+
+  
+</nav>
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Valine Comments -->
+    <div class="comments vcomment" id="comments"></div>
+    <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+    <script src="//unpkg.com/valine@latest/dist/Valine.min.js"></script>
+    <!-- Valine Comments script -->
+    <script>
+        var GUEST_INFO = ['nick','mail','link'];
+        var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+          return GUEST_INFO.indexOf(item) > -1
+        });
+        new Valine({
+            el: '#comments',
+            notify: 'false' == 'true',
+            verify: 'false' == 'true',
+            appId: "NhW1Ae88ntG5C6r1SgC0DieH-gzGzoHsz",
+            appKey: "cOUmk5RjOkfPAznRCHlTDd6S",
+            avatar: "retro",
+            placeholder: "爱评论的人运气通常都不会太差！",
+            guest_info: guest_info.length == 0 ? GUEST_INFO : guest_info,
+            pageSize: "10"
+        })
+    </script>
+    <!-- Valine Comments end -->
+
+
+
+
+
+
+
+</article>
+
+<div id="reward" class="page-modal reward-lay">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <h3 class="reward-title">
+        <i class="icon icon-quote-left"></i>
+        感恩~
+        <i class="icon icon-quote-right"></i>
+    </h3>
+    <div class="reward-content">
+        
+        <div class="reward-code">
+            <img id="rewardCode" src="/img/wechat.jpg" alt="打赏二维码">
+        </div>
+        
+        <label class="reward-toggle">
+            <input id="rewardToggle" type="checkbox" class="reward-toggle-check" data-wechat="/img/wechat.jpg" data-alipay="/img/alipay.jpg">
+            <div class="reward-toggle-ctrol">
+                <span class="reward-toggle-item wechat">微信</span>
+                <span class="reward-toggle-label"></span>
+                <span class="reward-toggle-item alipay">支付宝</span>
+            </div>
+        </label>
+        
+    </div>
+</div>
+
+
+
+</div>
+
+        <footer class="footer">
+    <div class="top">
+        
+<p>
+    <span id="busuanzi_container_site_uv" style="display:none">
+        站点总访客数：<span id="busuanzi_value_site_uv"></span>
+    </span>
+    <span id="busuanzi_container_site_pv" style="display:none">
+        站点总访问量：<span id="busuanzi_value_site_pv"></span>
+    </span>
+</p>
+
+
+        <p>
+            
+                <span><a href="/atom.xml" target="_blank" class="rss" title="rss"><i class="icon icon-lg icon-rss"></i></a></span>
+            
+            <span>博客内容遵循 <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh">知识共享 署名 - 非商业性 - 相同方式共享 4.0 国际协议</a></span>
+        </p>
+    </div>
+    <div class="bottom">
+        <p><span>老鱼头 &copy; 2018 - 2019</span>
+            <span>
+                
+                <a href="http://www.miitbeian.gov.cn/" target="_blank">浙ICP备18052095号-1</a><br>
+                
+                Power by <a href="http://hexo.io/" target="_blank">Hexo</a> Theme <a href="https://github.com/yscoder/hexo-theme-indigo" target="_blank">indigo</a>
+            </span>
+        </p>
+    </div>
+</footer>
+
+    </main>
+    <div class="mask" id="mask"></div>
+<a href="javascript:;" id="gotop" class="waves-effect waves-circle waves-light"><span class="icon icon-lg icon-chevron-up"></span></a>
+
+
+
+<div class="global-share" id="globalShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://blog.xiaoyuervae.cn/posts/1407851176/&title=《记一次排查线上CPU飚高的问题》 — 青春住了谁&pic=https://blog.xiaoyuervae.cn/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://blog.xiaoyuervae.cn/posts/1407851176/&title=《记一次排查线上CPU飚高的问题》 — 青春住了谁&source=" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://blog.xiaoyuervae.cn/posts/1407851176/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《记一次排查线上CPU飚高的问题》 — 青春住了谁&url=https://blog.xiaoyuervae.cn/posts/1407851176/&via=https://blog.xiaoyuervae.cn" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://blog.xiaoyuervae.cn/posts/1407851176/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+<div class="page-modal wx-share" id="wxShare">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAAAAACs8KCBAAACL0lEQVR42u3aQZKDMAxE0dz/0swBGMxviaQK+bNKJTPgx0JlufX54OtYXld/c/7+fM+rp3y+ccmQIeO1jHSJT31z/v7q83ptMmTI2IdxVcHWtyYldb3odcEla5MhQ4aM9TYu3RSShcqQIUPGswWXtJ2d5laGDBky0iY2fUzapv6oF5chQ8YLGfzU/fefv5JvyJAh41WMI7w6h/v8BcWrkiFDxmgGL3C8BSWHaP2CK0OGjH0YPHpMW8fiGy29AhkyZOzD4P/cgfFjteCQToYMGdszaqMSPBbthKNBwZUhQ8ZrGXzEgY9T8GJa24yiPFaGDBmDGLUYoPZrp6TeHMbJkCFjNIM3qJ2GNr1PLU6QIUPGVEatiV0XPj48wYPPm1IuQ4aM0Yygx8Xlj7eytbb5ZkMpQ4aMoQxecNNSSNpUUkbjlEOGDBmDGLVRCV4oa81wPBwmQ4aMzRj9QzRSgvsBwD+9uAwZMoYyOklCf+OYNrpBviFDhoxxjLS01UJHPlqRjp3JkCFjTwZfOi+4aZFN41IZMmTswOBbMb4pRNlpYxsqQ4aMPRm8Qe3En+nhGtrIypAhYyjjCK90K9mJRYN7ypAhYzSjduCFWsrakRkIR/kTZciQMYnRKbIpmIeUcZAgQ4aMDRidwpcGkGmxRkgZMmTICGNLPnhRO7ALZkZkyJCxMeOpaJNHlTeBhAwZMjZgkCY2bXdr4WjtzjJkyJjNaE1q4JJKfk03pjJkyNiA8QfZmomH9vnRpQAAAABJRU5ErkJggg==" alt="微信分享二维码">
+</div>
+
+
+
+
+    <script src="//cdn.bootcss.com/node-waves/0.7.4/waves.min.js"></script>
+<script>
+var BLOG = { ROOT: '/', SHARE: true, REWARD: true };
+
+
+</script>
+
+<script src="/js/main.min.js?v=1.7.2"></script>
+
+
+<div class="search-panel" id="search-panel">
+    <ul class="search-result" id="search-result"></ul>
+</div>
+<template id="search-tpl">
+<li class="item">
+    <a href="{path}" class="waves-block waves-effect">
+        <div class="title ellipsis" title="{title}">{title}</div>
+        <div class="flex-row flex-middle">
+            <div class="tags ellipsis">
+                {tags}
+            </div>
+            <time class="flex-col time">{date}</time>
+        </div>
+    </a>
+</li>
+</template>
+
+<script src="/js/search.min.js?v=1.7.2" async></script>
+
+
+
+
+
+
+<script async src="//dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>

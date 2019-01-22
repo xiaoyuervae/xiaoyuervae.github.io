@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+    
+
+    
+
+    
+
+
+
+    <meta charset="utf-8">
+    
+    
+    
+    
+    <title>一次排查MongoDB CPU过高、服务无响应的问题 | 青春住了谁 | 只有真正了解自己想要什么，才能知道自己该干什么。</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    
+    <meta name="theme-color" content="#3F51B5">
+    
+    
+    <meta name="keywords" content="mongo,cpu">
+    <meta name="description" content="问题的出现IM内的聊天记录等数据都存在Mongo DB中、最近手机短信一直收到持续不断的Apdex值比较低的告警，所以集中花时间看了一下到底是什么问题造成的。                                                                                              IMG_3045              在我们的M">
+<meta name="keywords" content="mongo,cpu">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一次排查MongoDB CPU过高、服务无响应的问题">
+<meta property="og:url" content="https://blog.xiaoyuervae.cn/posts/611001842/index.html">
+<meta property="og:site_name" content="青春住了谁">
+<meta property="og:description" content="问题的出现IM内的聊天记录等数据都存在Mongo DB中、最近手机短信一直收到持续不断的Apdex值比较低的告警，所以集中花时间看了一下到底是什么问题造成的。                                                                                              IMG_3045              在我们的M">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bly1fxsavmvgnlj20u01szwsl">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsenscdk3j21qw08c0uw">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsenseslhj21i80riagf">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensdw8ij223m0i27cc">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensij3wj212t0kie1m">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsense2isj217m0oagrn">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensa5orj213q04gjs6">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsentcwybj21h70u0wvi">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensr0u7j20xp0glk7g">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensuy9gj20d501lglo">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsenswtr2j20fz0wnn0f">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensxo8jj21gq0pkjwo">
+<meta property="og:updated_time" content="2019-01-22T07:22:15.577Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="一次排查MongoDB CPU过高、服务无响应的问题">
+<meta name="twitter:description" content="问题的出现IM内的聊天记录等数据都存在Mongo DB中、最近手机短信一直收到持续不断的Apdex值比较低的告警，所以集中花时间看了一下到底是什么问题造成的。                                                                                              IMG_3045              在我们的M">
+<meta name="twitter:image" content="https://ws1.sinaimg.cn/large/e1417e4bly1fxsavmvgnlj20u01szwsl">
+    
+        <link rel="alternate" type="application/atom+xml" title="青春住了谁" href="/atom.xml">
+    
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/css/style.css?v=1.7.2">
+    <script>window.lazyScripts=[]</script>
+
+    <!-- custom head -->
+    
+
+</head>
+
+<body>
+    <div id="loading" class="active"></div>
+
+    <style>
+  #aplayer {
+    width: 220px;
+    margin-top: 20px;
+  }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aplayer/1.10.1/APlayer.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aplayer/1.10.1/APlayer.min.js"></script>
+<aside id="menu" class="hide">
+  <div class="inner flex-row-vertical">
+    <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menu-off">
+      <i class="icon icon-lg icon-close"></i>
+    </a>
+    <div class="brand-wrap" style="background-image:url(/img/brand.jpg)">
+      <div class="brand">
+        <a href="/" class="avatar waves-effect waves-circle waves-light">
+          <img src="/img/avatar.jpg">
+        </a>
+        <hgroup class="introduce">
+          <h5 class="nickname">
+            老鱼头
+          </h5>
+          <a href="mailto:xiaoyuervae@icloud.com" title="xiaoyuervae@icloud.com" class="mail">xiaoyuervae@icloud.com</a>
+        </hgroup>
+      </div>
+    </div>
+    <div class="scroll-wrap flex-col">
+      <ul class="nav">
+        
+        <li class="waves-block waves-effect">
+          <a href="/">
+            <i class="icon icon-lg icon-home"></i>
+            主页
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/archives">
+            <i class="icon icon-lg icon-archives"></i>
+            归档
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/tags">
+            <i class="icon icon-lg icon-tags"></i>
+            标签
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/categories">
+            <i class="icon icon-lg icon-th-list"></i>
+            分类
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/books">
+            <i class="icon icon-lg icon-bookmark"></i>
+            读书
+          </a>
+        </li>
+        
+        <li class="waves-block waves-effect">
+          <a href="/movies">
+            <i class="icon icon-lg icon-film"></i>
+            电影
+          </a>
+        </li>
+        
+        <div id="music" "="">
+          <div id="aplayer"></div>
+        </div>
+        
+      </ul>
+    </div>
+  </div>
+</aside>
+<script>
+  const app = new APlayer({
+    container: document.getElementById('aplayer'),
+    autoplay: true,
+    loop: 'all',
+    order: 'random',
+    preload: 'auto',
+    volume: 0.7,
+    mutex: true, 
+    audio: [ {
+      name: '青春住了谁',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=505451285.mp3',
+      cover: 'http://p1.music.126.net/f8I94rzjMCzZJ0q1fR0ftw==/109951163023754735.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '挂失的青春',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=29794917.mp3',
+      cover: 'http://p1.music.126.net/caUiTL1FaolgWpSWy0Hnqg==/109951163249803409.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '喜剧收场',
+      artist: '杨丞琳',
+      url: 'http://music.163.com/song/media/outer/url?id=29794921.mp3',
+      cover: 'http://p2.music.126.net/F06r32IxFWWquGjY3bl40w==/3401888991666195.jpg?param=130y130',
+      theme: '#46718b'
+    }, {
+      name: '耳朵',
+      artist: '李荣浩',
+      url: 'http://music.163.com/song/media/outer/url?id=1318235595.mp3',
+      cover: 'http://p1.music.126.net/tt8xwK-ASC2iqXNUXYKoDQ==/109951163606377163.jpg?param=130y130',
+      theme: '#46718b'
+    }]
+  });
+</script>
+    <main id="main">
+        <header class="top-header" id="header">
+    <div class="flex-row">
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light on" id="menu-toggle">
+          <i class="icon icon-lg icon-navicon"></i>
+        </a>
+        <div class="flex-col header-title ellipsis">一次排查MongoDB CPU过高、服务无响应的问题</div>
+        
+        <div class="search-wrap" id="search-wrap">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
+                <i class="icon icon-lg icon-chevron-left"></i>
+            </a>
+            <input type="text" id="key" class="search-input" autocomplete="off" placeholder="输入感兴趣的关键字">
+            <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="search">
+                <i class="icon icon-lg icon-search"></i>
+            </a>
+        </div>
+        
+        
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="menuShare">
+            <i class="icon icon-lg icon-share-alt"></i>
+        </a>
+        
+    </div>
+</header>
+<header class="content-header post-header">
+
+    <div class="container fade-scale">
+        <h1 class="title">一次排查MongoDB CPU过高、服务无响应的问题</h1>
+        <h5 class="subtitle">
+            
+                <time datetime="2018-12-02T14:59:38.000Z" itemprop="datePublished" class="page-time">
+  2018-12-02
+</time>
+
+
+            
+        </h5>
+    </div>
+
+    
+
+
+</header>
+
+
+<div class="container body-wrap">
+    
+    <aside class="post-widget">
+        <nav class="post-toc-wrap post-toc-shrink" id="post-toc">
+            <h4>TOC</h4>
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#问题的出现"><span class="post-toc-number">1.</span> <span class="post-toc-text">问题的出现</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#排查具体的问题"><span class="post-toc-number">2.</span> <span class="post-toc-text">排查具体的问题</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#现象"><span class="post-toc-number">2.1.</span> <span class="post-toc-text">现象</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#排查"><span class="post-toc-number">2.2.</span> <span class="post-toc-text">排查</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#发现问题"><span class="post-toc-number">2.3.</span> <span class="post-toc-text">发现问题</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#解决问题"><span class="post-toc-number">3.</span> <span class="post-toc-text">解决问题</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#总结"><span class="post-toc-number">4.</span> <span class="post-toc-text">总结</span></a></li></ol>
+        </nav>
+    </aside>
+
+
+<article id="post-CPU过高、服务无响应的问题" class="post-article article-type-post fade" itemprop="blogPost">
+
+    <div class="post-card">
+        <h1 class="post-card-title">一次排查MongoDB CPU过高、服务无响应的问题</h1>
+        <div class="post-meta">
+            <time class="post-time" title="2018-12-02 14:59:38" datetime="2018-12-02T14:59:38.000Z" itemprop="datePublished">2018-12-02</time>
+
+            
+
+
+            
+<span id="busuanzi_container_page_pv" title="文章总阅读量" style="display:none">
+    <i class="icon icon-eye icon-pr"></i><span id="busuanzi_value_page_pv"></span>
+</span>
+
+
+        </div>
+        <div class="post-content" id="post-content" itemprop="postContent">
+            <h2 id="问题的出现"><a href="#问题的出现" class="headerlink" title="问题的出现"></a>问题的出现</h2><p>IM内的聊天记录等数据都存在Mongo DB中、最近手机短信一直收到持续不断的Apdex值比较低的告警，所以集中花时间看了一下到底是什么问题造成的。</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bly1fxsavmvgnlj20u01szwsl" alt="IMG_3045" title="">
+                </div>
+                <div class="image-caption">IMG_3045</div>
+            </figure>
+<p>在我们的<code>Marvin</code>监控系统中看到出现的慢日志和相关错误日志中看到基本上都来自于同一个接口:</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsenscdk3j21qw08c0uw" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>查看具体代码日志发现都是在执行查询M<code>mongo</code>的时候造成的超时。</p>
+<h2 id="排查具体的问题"><a href="#排查具体的问题" class="headerlink" title="排查具体的问题"></a>排查具体的问题</h2><h3 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h3><p>在观察这个接口一段时间之后发现一个非常奇特的现象:</p>
+<ul>
+<li><p>该接口正常情况下的<code>rt</code>还是很正常的, 然后突然<code>rpm</code>值会激增,同时<code>rt</code>也会激增, 从正常情况下的 <code>5ms</code> 左右突然激增到 <code>2s</code> 的时间左右, 这对于一个正常的接口来说是不可接受的。</p>
+<p>  <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsenseslhj21i80riagf" alt=""></p>
+</li>
+</ul>
+<ul>
+<li><p>观察了一下mongo机器的 <code>zabbix</code> 监控, 查看了一下mongo服务器在当时的状态, 发现除了机器的 <code>cpu load</code> 有稍微的波动之外, 磁盘IO、内存等数值都没有明显的上涨:</p>
+<p>  <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensdw8ij223m0i27cc" alt=""></p>
+</li>
+<li><p>观察了线上mongo本身的日志, 发现在rt上涨的过程中 <code>mongo</code> 服务器的连接数不断在上涨, 从平稳的连接数95开始上涨, 1s钟之内上涨到了1500左右的连接,同时在这段期间貌似是没有任何返回,从日志中可以看到一个连接的响应时间的开始到结束有些甚至达到了<strong>80s</strong>之久！(什么sql能查这么久?!)</p>
+<p>  <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensij3wj212t0kie1m" alt="从运维同学那边拿到的图"></p>
+</li>
+</ul>
+<h3 id="排查"><a href="#排查" class="headerlink" title="排查"></a>排查</h3><p>联系了运维的同学帮忙看一下到底是什么问题造成的, 因为运维同学最近比较忙, 恰巧碰到他负责双十二全链路压测, 而且他主要也是运维MySQL的经验比较多, 帮我们粗略看了一下认为是并发太高的问题造成的(突然一时间并发连接数暴涨)。一时之间也看不出来有什么大的问题。</p>
+<p>和运维同学一起排查的过程中我猜想是不是由于部分SQL没有走索引, 导致全表扫描或者是查询效率特别慢造成的阻塞, 运维同学回答我说有可能, 为了验证这个想法我们查看了在那段时间内的服务端日志中打印出来的慢查询的sql, 发现sql实在太多, 随便拉了几条出来看:</p>
+<figure class="highlight groovy"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">command historymessage.$cmd <span class="string">command:</span> count &#123; <span class="string">count:</span> <span class="string">"of_history_message"</span>, <span class="string">query:</span> &#123; <span class="string">session:</span> <span class="string">"86690631_97553434"</span>, <span class="string">$and:</span> [ &#123; <span class="string">msgTime:</span> &#123; <span class="string">$lte:</span> <span class="number">1543226394744</span> &#125; &#125; ] &#125; &#125; plan</span><br><span class="line"><span class="string">Summary:</span> COUNT_SCAN &#123; <span class="string">session:</span> <span class="number">1.0</span>, <span class="string">msgTime:</span> <span class="number">-1.0</span> &#125; <span class="string">keyUpdates:</span><span class="number">0</span> <span class="string">writeConflicts:</span><span class="number">0</span> <span class="string">numYields:</span><span class="number">0</span> <span class="string">reslen:</span><span class="number">44</span> <span class="string">locks:</span>&#123; <span class="string">Global:</span> &#123; <span class="string">acquireCount:</span> &#123; <span class="string">r:</span> <span class="number">1</span> &#125; &#125;, <span class="string">MMAPV1Journal:</span> &#123; <span class="string">acquireCount:</span> &#123; <span class="string">r:</span> <span class="number">1</span> &#125; &#125;, <span class="string">Database:</span> &#123; <span class="string">acquireCount:</span> &#123; <span class="string">r:</span> <span class="number">1</span></span><br><span class="line"> &#125; &#125;, <span class="string">Collection:</span> &#123; <span class="string">acquireCount:</span> &#123; <span class="string">R:</span> <span class="number">1</span> &#125; &#125; &#125; <span class="number">71270</span>ms</span><br></pre></td></tr></table></figure>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&#123; <span class="attribute">count</span>: <span class="string">"of_history_message"</span>, query: &#123; session: <span class="string">"86492947_95561724"</span>, $and: [ &#123; msgTime: &#123; $lte: <span class="number">1543235835000</span> &#125; &#125; ] &#125; &#125; <span class="selector-tag">plan</span></span><br><span class="line"><span class="selector-tag">Summary</span>: <span class="selector-tag">COUNT_SCAN</span> &#123; <span class="attribute">session</span>: <span class="number">1.0</span>, msgTime: -<span class="number">1.0</span> &#125; <span class="selector-tag">keyUpdates</span><span class="selector-pseudo">:0</span> <span class="selector-tag">writeConflicts</span><span class="selector-pseudo">:0</span> <span class="selector-tag">numYields</span><span class="selector-pseudo">:0</span> <span class="selector-tag">reslen</span><span class="selector-pseudo">:44</span> <span class="selector-tag">locks</span>:&#123; <span class="attribute">Global</span>: &#123; acquireCount: &#123; r: <span class="number">1</span> &#125; &#125;, <span class="selector-tag">MMAPV1Journal</span>: &#123; <span class="attribute">acquireCount</span>: &#123; r: <span class="number">1</span> &#125; &#125;, <span class="selector-tag">Database</span>: &#123; <span class="attribute">acquireCount</span>: &#123; r: <span class="number">1</span></span><br><span class="line"> &#125; &#125;, <span class="selector-tag">Collection</span>: &#123; <span class="attribute">acquireCount</span>: &#123; R: <span class="number">1</span> &#125; &#125; &#125; 151<span class="selector-tag">ms</span></span><br></pre></td></tr></table></figure>
+<p>看了一下这些sql 并在mongo 上打印了一下执行计划, 都是很正常的sql, 并且都走了索引, 同时放到mongo 上执行速度也很快，这些sql应该都是因为前面的执行sql发生了阻塞之后造成响应慢的。</p>
+<p>为了能够更好的进行排查我们从运维的同学那边要到了mongo服务器的机器权限, 方便进行更好的排查, 势必是要解决当前的这个问题。拿到服务器的权限之后发现mongo 的服务器配置还是相当强悍的：</p>
+<blockquote>
+<p>3台物理机, 逻辑CPU有48个, 内存有250G!</p>
+</blockquote>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsense2isj217m0oagrn" alt="CPU信息" title="">
+                </div>
+                <div class="image-caption">CPU信息</div>
+            </figure>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensa5orj213q04gjs6" alt="内存信息" title="">
+                </div>
+                <div class="image-caption">内存信息</div>
+            </figure>
+<p>线上以Mongo副本集的方式部署, 这样的配置可谓是相当强悍, 所有mongo数据库中数据基本上都是加载到内存, 查询起来按理来说不会很慢的啊。</p>
+<h3 id="发现问题"><a href="#发现问题" class="headerlink" title="发现问题"></a>发现问题</h3><p>线上mongo默认的日志好像是好几个月的日志都打在了同一个文件中，日志量实在太大，连grep一下都很难，只能看近期的一些日志，所有要做排查实在是非常困难。</p>
+<p>既然在mongo服务器上看不出问题那就从客户端出发吧，既然是在某一个时间点突然爆发出现速度慢的情况我是不是只要找出那个第一条响应慢的日志就可以知道到底是什么问题了。</p>
+<p>于是我在客户端查询的接口上加上了具体的调用日志，打印出每条查询mongo的sql的开始时间和结束时间，并且把对应的sql打印出来，上线之后观察一段时间，我找到了那第一条执行速度慢的日志:</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsentcwybj21h70u0wvi" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>我发现这条查询语句非常奇怪，竟然是查询小于当前时间的数量, 奇怪归奇怪, 但是讲道理也不应该会那么慢的, 只是查询一个数量而已, 于是我把这条语句放到了mongo上查看了一下执行计划:</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensr0u7j20xp0glk7g" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>不看不知道, 执行了一下发现竟然没有返回,并且出现了报错, 于是我立马意识到这条sql可能压根都没有索引, 查询小于当前时间所有的数据进行了一次全表扫描:<br><figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensuy9gj20d501lglo" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure></p>
+<p>8000多万数据进行了一次无索引的count, 查看了一下collection上的索引:<br><figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsenswtr2j20fz0wnn0f" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure></p>
+<p>发现果然是没有这个索引！</p>
+<h2 id="解决问题"><a href="#解决问题" class="headerlink" title="解决问题"></a>解决问题</h2><p>发现了这个慢sql之后我非常好奇为什么会有这个sql出现, 同客户端的同学确认了一下之后发现这个sql的存在很有可能是由于参数的误传导致的, 因为这个接口中mongo查询的参数是由前端的同学传过来，sql经过参数的拼接而形成的。</p>
+<p>为了验证我的想法我在业务的代码中增加了对这种sql形成的过滤(当然可能不止存在这一种没有走索引的慢sql)。</p>
+<p>代码上线之后得到了惊人的效果, 慢sql的情况居然一去不复返了。接口的rt再也没有上过30ms, 说明暂时还没有其他的慢sql出现:</p>
+<figure class="image-bubble">
+                <div class="img-lightbox">
+                    <div class="overlay"></div>
+                    <img src="https://ws1.sinaimg.cn/large/e1417e4bgy1fxsensxo8jj21gq0pkjwo" alt="" title="">
+                </div>
+                <div class="image-caption"></div>
+            </figure>
+<p>同时接口的rpm值也随之降下来了, 这时我意识到rpm的上涨应该是由于客户端超时之后进行了重试, 导致rpm值一下子暴涨, 所以mongo服务器的连接数才会一下子暴涨。</p>
+<p>至此，问题终于得到了解决，这几天终于没有再收到告警，舒坦了。。。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这次mongo服务器问题的排查经历了大概三天左右的时间才最终把问题找到解决, 也是我经历的最久的一次问题排查了，整个过程是比较艰辛的，虽然过程是很简单，但是中间是绕了不少的弯路，也查阅了不少mongo相关的资料，发现mongo这块的资料真的是少，不过好在最后找到了问题所在。以前排查问题很少有这样的坚持力，基本上排查了一段时间后如果说真的发现不了问题的话就放弃了，所以对待这种排查起来比较困难的问题还是要懂得坚持，理清自己的思路。</p>
+<p>通过这次排查我也发现我们之前在使用mongo的时候也有很多不规范的地方，mongo是一个性能很强悍的NoSQL数据库, 我们可能还没有真正的发挥出Mongo自身的性能。同时也有几个不规范的点:</p>
+<ul>
+<li>在业务中拼条件组成sql，可能大家为了代码的复用方便不愿去写多个SQL分别去做查询，但是这样造成了有些参数的缺失可能形成了一条性能极差的sql。</li>
+<li>客户端的超时次数没有设置好，这次的问题也主要是由于客户端的超时次数太多了，其实一两条这种sql根本并不会造成严重的性能问题的，主要是因为超时重试造成了同一时间内多条这种低性能SQL阻塞了mongo的执行甚至拖垮整个mongo集群。</li>
+<li>mongo服务的监控做的不够到位，这个问题也不好说，mongo在公司的使用毕竟还不够主流，相关工具的支持也很不完善，出现了问题没有能够进行及时的反馈，导致这个问题在线上出现了很久。</li>
+</ul>
+
+        </div>
+
+        <blockquote class="post-copyright">
+    
+    <div class="content">
+        
+<span class="post-time">
+    最后更新时间：<time datetime="2019-01-22T07:22:15.577Z" itemprop="dateUpdated">2019-01-22 07:22:15</time>
+</span><br>
+
+
+        
+        这里可以写作者留言，标签和 hexo 中所有变量及辅助函数等均可调用，示例：<a href="/posts/611001842/" target="_blank" rel="external">https://blog.xiaoyuervae.cn/posts/611001842/</a>
+        
+    </div>
+    
+    <footer>
+        <a href="https://blog.xiaoyuervae.cn">
+            <img src="/img/avatar.jpg" alt="老鱼头">
+            老鱼头
+        </a>
+    </footer>
+</blockquote>
+
+        
+<div class="page-reward">
+    <a id="rewardBtn" href="javascript:;" class="page-reward-btn waves-effect waves-circle waves-light">赏</a>
+</div>
+
+
+
+        <div class="post-footer">
+            
+	<ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/cpu/">cpu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/mongo/">mongo</a></li></ul>
+
+
+            
+<div class="page-share-wrap">
+    
+
+<div class="page-share" id="pageShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://blog.xiaoyuervae.cn/posts/611001842/&title=《一次排查MongoDB CPU过高、服务无响应的问题》 — 青春住了谁&pic=https://blog.xiaoyuervae.cn/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://blog.xiaoyuervae.cn/posts/611001842/&title=《一次排查MongoDB CPU过高、服务无响应的问题》 — 青春住了谁&source=" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://blog.xiaoyuervae.cn/posts/611001842/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《一次排查MongoDB CPU过高、服务无响应的问题》 — 青春住了谁&url=https://blog.xiaoyuervae.cn/posts/611001842/&via=https://blog.xiaoyuervae.cn" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://blog.xiaoyuervae.cn/posts/611001842/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+
+    <a href="javascript:;" id="shareFab" class="page-share-fab waves-effect waves-circle">
+        <i class="icon icon-share-alt icon-lg"></i>
+    </a>
+</div>
+
+
+
+        </div>
+    </div>
+
+    
+<nav class="post-nav flex-row flex-justify-between">
+  
+    <div class="waves-block waves-effect prev">
+      <a href="/posts/1044148734/" id="post-prev" class="post-nav-link">
+        <div class="tips"><i class="icon icon-angle-left icon-lg icon-pr"></i> Prev</div>
+        <h4 class="title">RocketMq 学习之核心参数</h4>
+      </a>
+    </div>
+  
+
+  
+    <div class="waves-block waves-effect next">
+      <a href="/posts/1407851176/" id="post-next" class="post-nav-link">
+        <div class="tips">Next <i class="icon icon-angle-right icon-lg icon-pl"></i></div>
+        <h4 class="title">记一次排查线上CPU飚高的问题</h4>
+      </a>
+    </div>
+  
+</nav>
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Valine Comments -->
+    <div class="comments vcomment" id="comments"></div>
+    <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+    <script src="//unpkg.com/valine@latest/dist/Valine.min.js"></script>
+    <!-- Valine Comments script -->
+    <script>
+        var GUEST_INFO = ['nick','mail','link'];
+        var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+          return GUEST_INFO.indexOf(item) > -1
+        });
+        new Valine({
+            el: '#comments',
+            notify: 'false' == 'true',
+            verify: 'false' == 'true',
+            appId: "NhW1Ae88ntG5C6r1SgC0DieH-gzGzoHsz",
+            appKey: "cOUmk5RjOkfPAznRCHlTDd6S",
+            avatar: "retro",
+            placeholder: "爱评论的人运气通常都不会太差！",
+            guest_info: guest_info.length == 0 ? GUEST_INFO : guest_info,
+            pageSize: "10"
+        })
+    </script>
+    <!-- Valine Comments end -->
+
+
+
+
+
+
+
+</article>
+
+<div id="reward" class="page-modal reward-lay">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <h3 class="reward-title">
+        <i class="icon icon-quote-left"></i>
+        感恩~
+        <i class="icon icon-quote-right"></i>
+    </h3>
+    <div class="reward-content">
+        
+        <div class="reward-code">
+            <img id="rewardCode" src="/img/wechat.jpg" alt="打赏二维码">
+        </div>
+        
+        <label class="reward-toggle">
+            <input id="rewardToggle" type="checkbox" class="reward-toggle-check" data-wechat="/img/wechat.jpg" data-alipay="/img/alipay.jpg">
+            <div class="reward-toggle-ctrol">
+                <span class="reward-toggle-item wechat">微信</span>
+                <span class="reward-toggle-label"></span>
+                <span class="reward-toggle-item alipay">支付宝</span>
+            </div>
+        </label>
+        
+    </div>
+</div>
+
+
+
+</div>
+
+        <footer class="footer">
+    <div class="top">
+        
+<p>
+    <span id="busuanzi_container_site_uv" style="display:none">
+        站点总访客数：<span id="busuanzi_value_site_uv"></span>
+    </span>
+    <span id="busuanzi_container_site_pv" style="display:none">
+        站点总访问量：<span id="busuanzi_value_site_pv"></span>
+    </span>
+</p>
+
+
+        <p>
+            
+                <span><a href="/atom.xml" target="_blank" class="rss" title="rss"><i class="icon icon-lg icon-rss"></i></a></span>
+            
+            <span>博客内容遵循 <a rel="license" href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh">知识共享 署名 - 非商业性 - 相同方式共享 4.0 国际协议</a></span>
+        </p>
+    </div>
+    <div class="bottom">
+        <p><span>老鱼头 &copy; 2018 - 2019</span>
+            <span>
+                
+                <a href="http://www.miitbeian.gov.cn/" target="_blank">浙ICP备18052095号-1</a><br>
+                
+                Power by <a href="http://hexo.io/" target="_blank">Hexo</a> Theme <a href="https://github.com/yscoder/hexo-theme-indigo" target="_blank">indigo</a>
+            </span>
+        </p>
+    </div>
+</footer>
+
+    </main>
+    <div class="mask" id="mask"></div>
+<a href="javascript:;" id="gotop" class="waves-effect waves-circle waves-light"><span class="icon icon-lg icon-chevron-up"></span></a>
+
+
+
+<div class="global-share" id="globalShare">
+    <ul class="reset share-icons">
+      <li>
+        <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://blog.xiaoyuervae.cn/posts/611001842/&title=《一次排查MongoDB CPU过高、服务无响应的问题》 — 青春住了谁&pic=https://blog.xiaoyuervae.cn/img/avatar.jpg" data-title="微博">
+          <i class="icon icon-weibo"></i>
+        </a>
+      </li>
+      <li>
+        <a class="weixin share-sns wxFab" href="javascript:;" data-title="微信">
+          <i class="icon icon-weixin"></i>
+        </a>
+      </li>
+      <li>
+        <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://blog.xiaoyuervae.cn/posts/611001842/&title=《一次排查MongoDB CPU过高、服务无响应的问题》 — 青春住了谁&source=" data-title=" QQ">
+          <i class="icon icon-qq"></i>
+        </a>
+      </li>
+      <li>
+        <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://blog.xiaoyuervae.cn/posts/611001842/" data-title=" Facebook">
+          <i class="icon icon-facebook"></i>
+        </a>
+      </li>
+      <li>
+        <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《一次排查MongoDB CPU过高、服务无响应的问题》 — 青春住了谁&url=https://blog.xiaoyuervae.cn/posts/611001842/&via=https://blog.xiaoyuervae.cn" data-title=" Twitter">
+          <i class="icon icon-twitter"></i>
+        </a>
+      </li>
+      <li>
+        <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://blog.xiaoyuervae.cn/posts/611001842/" data-title=" Google+">
+          <i class="icon icon-google-plus"></i>
+        </a>
+      </li>
+    </ul>
+ </div>
+
+
+<div class="page-modal wx-share" id="wxShare">
+    <a class="close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAAAAACs8KCBAAACOElEQVR42u3aS3LjMAwFwNz/0poDxKYeAGWqSDVXLkeh2Vqg8OHPT7yuXyt58vf3yTfr/UcLAwNjW8a1XPkz33Ze7/DtyfLvYmBgvICRHCIJnesn1+F7zbs5MwYGBkZv62JaOfotDAwMjOCI68SumoZiYGBg9IrYSWts3YZ7oHjGwMA4mpEf4v9//pP5BgYGxlaMq7iSZlmSOPbGAF9PhYGBcTQjD3D50fPUsNq2u0k0MTAwXsCYNNQmqd7kAllUJWNgYBzB6AXHvAGXp4/VgcENBgMD4zhGtQXf+8kk+I4GABgYGK9hVIvMXqsuv5CRlNMYGBinMvLAOrly8VSrLqrCMTAwDmXMG2HJGHJ9rPwkHz5jYGAczXhqDFC9YFFd5T0xMDAOYlSTwiqy99fqa8LAwHgPI2lvVQ+RF7f5ELQ5T8DAwNiWUW295YOBSQjOMc0OIgYGxlaM6qa9cJw32vKxwYciFgMD42jGJDnrjQrmqeqHgIuBgXEoI/nnK155SK1euWjmthgYGIcyymnZuAPWe3E3ARcDA+NQRpR+Bc21eTHcLJUxMDBewKgmeXloTl5QNXwX4joGBsbmjKu48tb/JNGMEkEMDIzXMPI1T/vyxlkelMswDAyMbRnzdn8viPfac4WuHgYGxnGM5ArXpN2WXw5rjhkwMDAwgmZ9L7msXi+7abphYGBgtIJydcyQF7oPBFwMDIytGL1hwOQVTIIyBgbG2xhP9bKqg8xJsB7NNzAwMHZi/ANDiCLg8yb/ggAAAABJRU5ErkJggg==" alt="微信分享二维码">
+</div>
+
+
+
+
+    <script src="//cdn.bootcss.com/node-waves/0.7.4/waves.min.js"></script>
+<script>
+var BLOG = { ROOT: '/', SHARE: true, REWARD: true };
+
+
+</script>
+
+<script src="/js/main.min.js?v=1.7.2"></script>
+
+
+<div class="search-panel" id="search-panel">
+    <ul class="search-result" id="search-result"></ul>
+</div>
+<template id="search-tpl">
+<li class="item">
+    <a href="{path}" class="waves-block waves-effect">
+        <div class="title ellipsis" title="{title}">{title}</div>
+        <div class="flex-row flex-middle">
+            <div class="tags ellipsis">
+                {tags}
+            </div>
+            <time class="flex-col time">{date}</time>
+        </div>
+    </a>
+</li>
+</template>
+
+<script src="/js/search.min.js?v=1.7.2" async></script>
+
+
+
+
+
+
+<script async src="//dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+</body>
+</html>
